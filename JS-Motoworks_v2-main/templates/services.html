@@ -1,0 +1,240 @@
+{% extends "layout.html" %}
+{% block content %}
+{% set services = services|default([]) %}
+{% set service_categories = service_categories|default(['Labor','Repair','Maintenance','Installation','Inspection','Other']) %}
+{% set summary = summary|default({'total': services|length, 'active': 0, 'archived': 0, 'average_fee': 0}) %}
+{% set filters = filters|default({}) %}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1">Service & Labor Management</h2>
+            <p class="text-muted mb-0">Maintain standard service/labor items used by the POS service dropdown.</p>
+        </div>
+        <button class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#addServiceModal">
+            <i class="fa-solid fa-plus me-2"></i>Add Service
+        </button>
+    </div>
+
+    <div class="alert alert-info border-0 rounded-4 small">
+        <strong>POS behavior:</strong> Active services appear in the POS service dropdown. Archived services are hidden from new transactions but remain available in old sales records.
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">Services Shown</small>
+                <h3 class="fw-bold mb-0">{{ summary.get('total', 0) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">Active</small>
+                <h3 class="fw-bold text-success mb-0">{{ summary.get('active', 0) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">Archived</small>
+                <h3 class="fw-bold text-secondary mb-0">{{ summary.get('archived', 0) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">Average Labor Fee</small>
+                <h3 class="fw-bold text-primary mb-0">₱{{ "{:,.2f}".format(summary.get('average_fee', 0)|float) }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-custom mb-4">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-lg-4">
+                <label class="form-label fw-bold">Search</label>
+                <input type="text" name="search" class="form-control" value="{{ filters.get('search','') }}" placeholder="Service name, category, description">
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label fw-bold">Category</label>
+                <select name="category" class="form-select">
+                    <option value="">All Categories</option>
+                    {% for cat in service_categories %}
+                    <option value="{{ cat }}" {% if filters.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label fw-bold">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="Active" {% if filters.get('status') == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Archived" {% if filters.get('status') == 'Archived' %}selected{% endif %}>Archived</option>
+                </select>
+            </div>
+            <div class="col-lg-2 d-flex gap-2">
+                <button class="btn btn-primary fw-bold flex-fill"><i class="fa-solid fa-filter me-1"></i>Filter</button>
+                <a href="/services" class="btn btn-outline-secondary fw-bold">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="card-custom">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th class="text-center">Duration</th>
+                        <th class="text-end">Labor Fee</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for svc in services %}
+                    {% set duration = svc.get('estimated_duration') or svc.get('duration_minutes') or 30 %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ svc.service_name }}</div>
+                            <small class="text-muted">ID #{{ svc.service_id }}</small>
+                        </td>
+                        <td><span class="badge bg-info text-dark">{{ svc.category or 'Labor' }}</span></td>
+                        <td class="text-muted small">{{ svc.description or '—' }}</td>
+                        <td class="text-center fw-semibold">{{ duration }} min</td>
+                        <td class="text-end text-success fw-bold">₱{{ "{:,.2f}".format(svc.labor_fee or 0) }}</td>
+                        <td class="text-center">
+                            {% if svc.is_active is not sameas false %}
+                                <span class="badge bg-success">Active in POS</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Archived</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editService{{ svc.service_id }}" title="Edit service">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                {% if svc.is_active is not sameas false %}
+                                <form action="/services/archive/{{ svc.service_id }}" method="POST" class="d-inline" onsubmit="return confirm('Archive this service? It will no longer appear in POS.');">
+                                    <button class="btn btn-outline-warning" title="Archive service"><i class="fa-solid fa-box-archive"></i></button>
+                                </form>
+                                {% else %}
+                                <form action="/services/restore/{{ svc.service_id }}" method="POST" class="d-inline">
+                                    <button class="btn btn-outline-success" title="Restore service"><i class="fa-solid fa-rotate-left"></i></button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+
+                    <div class="modal fade" id="editService{{ svc.service_id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <form method="POST" action="/services/edit/{{ svc.service_id }}">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Edit Service</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Service Name</label>
+                                            <input type="text" name="service_name" class="form-control" value="{{ svc.service_name }}" required>
+                                        </div>
+
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Category</label>
+                                                <select name="category" class="form-select">
+                                                    {% for cat in service_categories %}
+                                                    <option value="{{ cat }}" {% if (svc.category or 'Labor') == cat %}selected{% endif %}>{{ cat }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Labor Fee</label>
+                                                <input type="number" step="0.01" min="0" name="labor_fee" class="form-control" value="{{ svc.labor_fee or 0 }}" required>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Estimated Duration</label>
+                                                <input type="number" min="0" name="duration_minutes" class="form-control" value="{{ duration }}">
+                                            </div>
+                                        </div>
+
+                                        <div class="mt-3">
+                                            <label class="form-label fw-bold">Description</label>
+                                            <textarea name="description" class="form-control" rows="3">{{ svc.description or '' }}</textarea>
+                                        </div>
+
+                                        <div class="form-check mt-3">
+                                            <input class="form-check-input" type="checkbox" name="is_active" id="active{{ svc.service_id }}" {% if svc.is_active is not sameas false %}checked{% endif %}>
+                                            <label class="form-check-label fw-semibold" for="active{{ svc.service_id }}">Active in POS service dropdown</label>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button class="btn btn-primary fw-bold">Save Changes</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-5">
+                            <i class="fa-solid fa-screwdriver-wrench fs-2 d-block mb-2"></i>
+                            No services found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addServiceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="/services">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Standard Service</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Service Name</label>
+                        <input type="text" name="service_name" class="form-control" placeholder="Example: Change Oil Labor" required>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Category</label>
+                            <select name="category" class="form-select">
+                                {% for cat in service_categories %}
+                                <option value="{{ cat }}" {% if cat == 'Labor' %}selected{% endif %}>{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Labor Fee</label>
+                            <input type="number" step="0.01" min="0" name="labor_fee" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Estimated Duration</label>
+                            <input type="number" min="0" name="duration_minutes" class="form-control" value="30">
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label fw-bold">Description</label>
+                        <textarea name="description" class="form-control" rows="3" placeholder="Optional service description"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary fw-bold">Add Service</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h2 class="fw-bold mb-1">Staff User Management</h2>
+        <p class="text-muted mb-0">Create and manage internal system accounts only. Customer accounts are managed separately.</p>
+    </div>
+    <a href="/customers" class="btn btn-outline-primary fw-bold">
+        <i class="fa-solid fa-address-book me-2"></i>View Customer Records
+    </a>
+</div>
+
+<div class="card-custom mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h5 class="fw-bold mb-0">Internal Staff Accounts</h5>
+            <small class="text-muted">Admin, Cashier, and Inventory roles only.</small>
+        </div>
+        <span class="badge bg-light text-dark border">{{ users|length }} staff account(s)</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-dark table-striped table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Full Name</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for u in users %}
+                <tr>
+                    <td class="fw-bold">{{ u.username }}</td>
+                    <td>{{ u.email or '-' }}</td>
+                    <td>{{ u.full_name }}</td>
+                    <td><span class="badge bg-primary">{{ u.role }}</span></td>
+                    <td>
+                        {% if u.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Deactivated</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ u.created_at[:10] if u.created_at else '-' }}</td>
+                    <td class="text-end">
+                        {% if u.is_active and u.user_id != session.user_id %}
+                        <form action="/delete_user/{{ u.user_id }}" method="POST" onsubmit="return confirm('Deactivate this staff account?');">
+                            <button class="btn btn-sm btn-outline-danger">Deactivate</button>
+                        </form>
+                        {% else %}
+                            <span class="text-muted small">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No staff accounts found.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card-custom">
+    <h5 class="fw-bold mb-3">Create Staff Account</h5>
+    <form method="POST" class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label">Username</label>
+            <input name="username" class="form-control" required>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Staff Email</label>
+            <input type="email" name="email" class="form-control" placeholder="Optional but recommended">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Full Name</label>
+            <input name="full_name" class="form-control" required>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Role</label>
+            <select name="role" class="form-select" required>
+                <option value="Admin">Admin</option>
+                <option value="Cashier">Cashier</option>
+                <option value="Inventory">Inventory</option>
+            </select>
+            <small class="text-muted">Customer accounts are created through registration.</small>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Temporary Password</label>
+            <input type="password" name="password" class="form-control" required>
+        </div>
+        <div class="col-12">
+            <button class="btn btn-primary fw-bold"><i class="fa-solid fa-user-plus me-2"></i>Create Staff Account</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

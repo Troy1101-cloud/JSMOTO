@@ -1,0 +1,471 @@
+{% extends "layout.html" %}
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .pos-panel { border: 1px solid rgba(148,163,184,.25); border-radius: 16px; background: #ffffff; box-shadow: 0 10px 25px rgba(15,23,42,.06); }
+    .pos-panel h6 { color:#0f172a; }
+    .cart-table thead th { color:#475569; font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
+    .select2-container--default .select2-selection--single { height: 42px; border:1px solid #cbd5e1; border-radius:10px; padding-top:6px; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { color:#0f172a; }
+    .select2-dropdown { border:1px solid #cbd5e1; }
+    .customer-tab { border:1px solid #cbd5e1; border-radius:10px; }
+    .gcash-box { background:#f8fafc; border:1px dashed #94a3b8; border-radius:14px; }
+    .scan-status { border-radius: 12px; padding: 10px 12px; font-size:.88rem; display:none; margin-top:10px; }
+    .scan-status.success { display:block; background:#ecfdf5; color:#166534; border:1px solid #bbf7d0; }
+    .scan-status.error { display:block; background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+    .scan-status.info { display:block; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
+</style>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1">Point of Sale</h2>
+            <p class="text-muted mb-0">Scan parts, add labor, review cart, and complete payment.</p>
+        </div>
+        <span class="badge bg-light text-dark border px-3 py-2">Cashier: {{ session.username }}</span>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="pos-panel p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-barcode text-primary me-2"></i>Barcode Scanner / Item Code</h6>
+                    <span class="badge bg-success" id="scannerReadyBadge">Scanner Ready</span>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="scannerInput" class="form-control fw-bold" placeholder="Scan item barcode or type Item Code" autofocus autocomplete="off">
+                    <button class="btn btn-primary fw-bold" onclick="searchItem()">Add</button>
+                </div>
+                <div id="scanStatus" class="scan-status info">
+                    Ready to scan. USB barcode scanners work like keyboard input and usually press Enter automatically.
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <small class="text-muted">Out-of-stock parts are blocked automatically.</small>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="focusScanner()">
+                        <i class="fa-solid fa-crosshairs me-1"></i>Focus Scanner
+                    </button>
+                </div>
+            </div>
+
+            <div class="pos-panel p-3 mb-3">
+                <h6 class="fw-bold mb-2"><i class="fa-solid fa-wrench text-success me-2"></i>Standard Labor / Service</h6>
+                <div class="d-flex gap-2">
+                    <select id="serviceSelect" class="form-control flex-grow-1">
+                        <option value="">Search service...</option>
+                        {% for svc in services %}
+                            <option value='{{ {"name": svc.service_name, "price": svc.labor_fee}|tojson }}'>
+                                {{ svc.service_name }} - ₱{{ "{:,.2f}".format(svc.labor_fee|float) }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-success fw-bold" onclick="addStandardService()">Add</button>
+                </div>
+                {% if services|length == 0 %}
+                <small class="text-danger d-block mt-2">No active services loaded. Admin can add services under Service Management.</small>
+                {% endif %}
+            </div>
+
+            <div class="pos-panel p-3 mb-3">
+                <h6 class="fw-bold mb-2"><i class="fa-solid fa-user-gear text-info me-2"></i>Custom Labor</h6>
+                <div class="input-group">
+                    <input type="text" id="customLaborName" class="form-control" placeholder="Task description">
+                    <input type="number" id="customLaborPrice" class="form-control" placeholder="Amount" style="max-width:120px;">
+                    <button class="btn btn-info fw-bold" onclick="addCustomLabor()">Add</button>
+                </div>
+            </div>
+            <div class="pos-panel p-3 mb-3">
+                <h6 class="fw-bold mb-2"><i class="fa-solid fa-truck-field text-warning me-2"></i>Outsourced Part</h6>
+                <p class="small text-muted mb-2">Use this for parts that are not stocked in the shop and were purchased from another supplier for the customer.</p>
+                <div class="input-group mb-2">
+                    <input type="text" id="outsourcedPartName" class="form-control" placeholder="Part description">
+                    <input type="number" id="outsourcedPartPrice" class="form-control" placeholder="Charge (₱)" style="max-width:130px;">
+                    <button class="btn btn-warning fw-bold" onclick="addOutsourcedPart()">Add</button>
+                </div>
+                <small class="text-muted">Outsourced parts are itemized in sales but do not deduct inventory stock.</small>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="pos-panel p-3">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <div>
+                        <h5 class="fw-bold mb-1">Active Cart</h5>
+                        <small class="text-muted">Review parts and services before checkout.</small>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <select id="customerTab" class="form-select customer-tab" style="max-width:240px;" onchange="switchCustomer()">
+                            <option value="Customer 1">Customer 1 - Walk-in</option>
+                            <option value="Customer 2">Customer 2 - Walk-in</option>
+                            <option value="Customer 3">Customer 3 - Walk-in</option>
+                        </select>
+                        <button class="btn btn-outline-secondary btn-sm fw-bold" type="button" onclick="clearActiveCustomer()">
+                            <i class="fa-solid fa-rotate-left me-1"></i>Clear Current
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive" style="min-height:300px;">
+                    <table class="table align-middle cart-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-end">Unit</th>
+                                <th class="text-end">Subtotal</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cartTable"></tbody>
+                    </table>
+                </div>
+
+                <div class="border-top pt-3 mt-3">
+                    <div class="card border-0 mb-3" style="background:#f8fafc;border-radius:14px;">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                <div>
+                                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-user-tag text-primary me-2"></i>Customer for This Sale</h6>
+                                    <small class="text-muted">Priority: select a registered customer first. Walk-in is still available for unregistered customers.</small>
+                                </div>
+                                <span class="badge bg-primary" id="activeCustomerBadge">Customer 1</span>
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-5">
+                                    <label class="form-label fw-bold small">Search Registered Customer</label>
+                                    <div class="input-group">
+                                        <input type="text" id="customerSearchInput" class="form-control" placeholder="Search name, email, or contact">
+                                        <button type="button" class="btn btn-primary fw-bold" onclick="searchCustomers()">
+                                            <i class="fa-solid fa-magnifying-glass"></i>
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">Registered customers appear first; sales-only customers appear after.</small>
+                                </div>
+                                <div class="col-md-7">
+                                    <label class="form-label fw-bold small">Customer Selection</label>
+                                    <select id="customerSelect" class="form-select" onchange="applySelectedCustomer()">
+                                        <option value="">Walk-in Customer</option>
+                                    </select>
+                                    <small class="text-muted" id="customerSelectHelp">Select a registered customer when available.</small>
+                                </div>
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small">Customer Name</label>
+                                    <input type="text" id="saleCustomerName" class="form-control" placeholder="Walk-in customer" oninput="markManualCustomer(); saveCustomerProfile(); refreshCustomerTabs();">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small">Contact Number</label>
+                                    <input type="text" id="saleCustomerContact" class="form-control" placeholder="Optional" oninput="markManualCustomer(); saveCustomerProfile();">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small">Email</label>
+                                    <input type="email" id="saleCustomerEmail" class="form-control" placeholder="Optional" oninput="markManualCustomer(); saveCustomerProfile();">
+                                </div>
+                                <div class="col-12">
+                                    <small class="text-muted">These details are saved only for the active cart. They will appear in the receipt and Customer Records for suki tracking.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted fw-bold">Total Amount</span>
+                        <h2 class="fw-bold text-success mb-0">₱<span id="totalAmount">0.00</span></h2>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Payment Method</label>
+                            <select id="paymentMethod" class="form-select form-select-lg" onchange="toggleGCash()">
+                                <option value="Cash">Cash</option>
+                                <option value="GCash">GCash QR</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <button id="checkoutBtn" class="btn btn-primary btn-lg w-100 fw-bold" onclick="processCheckout()">Complete Sale</button>
+                        </div>
+                    </div>
+
+                    <div id="gcashDiv" class="gcash-box mt-3 p-3" style="display:none;">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-5 text-center">
+                                {% if shop_settings.gcash_qr_url %}
+                                    <img src="{{ shop_settings.gcash_qr_url }}" class="img-fluid rounded border bg-white" style="max-height:220px;object-fit:contain;" alt="GCash QR Code">
+                                {% else %}
+                                    <div class="alert alert-warning small mb-0">No GCash QR configured. Ask Admin to add it in Settings.</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-7">
+                                <h6 class="fw-bold text-primary">GCash Payment Reference</h6>
+                                <p class="small text-muted mb-2">Verify the customer's GCash payment, then enter the reference number.</p>
+                                <input type="text" id="gcashReferenceInput" class="form-control text-center fw-bold" placeholder="GCash reference number">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    const customerSearchInput = document.getElementById('customerSearchInput');
+    if(customerSearchInput){
+        customerSearchInput.addEventListener('keydown', function(e){
+            if(e.key === 'Enter'){
+                e.preventDefault();
+                searchCustomers();
+            }
+        });
+    }
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+let carts = {'Customer 1': [], 'Customer 2': [], 'Customer 3': []};
+let customerProfiles = {
+    'Customer 1': {name:'', contact:'', email:''},
+    'Customer 2': {name:'', contact:'', email:''},
+    'Customer 3': {name:'', contact:'', email:''}
+};
+let activeCustomer = 'Customer 1';
+let total = 0;
+
+$(document).ready(function(){ $('#serviceSelect').select2({placeholder:"Type to search service...",allowClear:true}); loadCustomerProfile(); updateCartDisplay(); refreshCustomerTabs(); });
+
+function updateCustomerHelp(){
+    const p=customerProfiles[activeCustomer] || {};
+    const help=document.getElementById('customerSelectHelp');
+    if(!help) return;
+    if(p.registered){
+        help.innerHTML = `<span class="text-success fw-bold">Registered customer selected</span>${p.suki_level ? ' • ' + p.suki_level : ''}`;
+    } else if(p.name || p.contact || p.email){
+        help.innerHTML = '<span class="text-warning fw-bold">Manual / walk-in customer</span> — will still be saved for Customer Records.';
+    } else {
+        help.textContent = 'Select a registered customer when available.';
+    }
+}
+
+function markManualCustomer(){
+    const p=customerProfiles[activeCustomer] || {};
+    p.registered=false;
+    p.customer_id=null;
+    p.source='Manual / Walk-in';
+    p.suki_level='';
+    customerProfiles[activeCustomer]=p;
+    const sel=document.getElementById('customerSelect');
+    if(sel) sel.value='';
+    updateCustomerHelp();
+}
+
+async function searchCustomers(){
+    const q=document.getElementById('customerSearchInput').value.trim();
+    const sel=document.getElementById('customerSelect');
+    const help=document.getElementById('customerSelectHelp');
+    sel.innerHTML='<option value="">Searching...</option>';
+    try{
+        const res=await fetch('/api/customers/search?q='+encodeURIComponent(q));
+        const data=await res.json();
+        if(data.status!=='success') throw new Error(data.message || 'Unable to search customers.');
+        customerSearchResults=data.customers || [];
+        sel.innerHTML='<option value="">Walk-in Customer</option>';
+        customerSearchResults.forEach((c,idx)=>{
+            const opt=document.createElement('option');
+            opt.value=idx;
+            const tag=c.registered ? 'Registered' : 'Sales-only';
+            const suki=c.suki_level ? ` • ${c.suki_level}` : '';
+            opt.textContent=`${c.name || 'Customer'}${c.email ? ' — '+c.email : ''}${c.contact ? ' — '+c.contact : ''} [${tag}${suki}]`;
+            sel.appendChild(opt);
+        });
+        if(customerSearchResults.length){
+            // Auto-select the best match immediately.
+            // Registered customers are prioritized by the backend, so index 0 should be the best customer match.
+            sel.value='0';
+            applySelectedCustomer();
+            const selectedCustomer = customerSearchResults[0] || {};
+            help.innerHTML = `<span class="text-success fw-bold">Auto-selected:</span> ${selectedCustomer.name || 'Customer'}${selectedCustomer.registered ? ' • Registered' : ' • Sales-only'}`;
+        } else {
+            help.textContent='No matching customer. Continue as walk-in/manual.';
+        }
+    }catch(err){
+        sel.innerHTML='<option value="">Walk-in Customer</option>';
+        help.textContent=err.message;
+    }
+}
+
+function applySelectedCustomer(){
+    const sel=document.getElementById('customerSelect');
+    if(sel.value===''){
+        markManualCustomer();
+        return;
+    }
+    const c=customerSearchResults[parseInt(sel.value)];
+    if(!c) return;
+    customerProfiles[activeCustomer]={
+        name:c.name || '',
+        contact:c.contact || '',
+        email:c.email || '',
+        registered:!!c.registered,
+        customer_id:c.customer_id || null,
+        suki_level:c.suki_level || '',
+        source:c.source || ''
+    };
+    document.getElementById('saleCustomerName').value=customerProfiles[activeCustomer].name;
+    document.getElementById('saleCustomerContact').value=customerProfiles[activeCustomer].contact;
+    document.getElementById('saleCustomerEmail').value=customerProfiles[activeCustomer].email;
+    saveCustomerProfile();
+    refreshCustomerTabs();
+    updateCustomerHelp();
+}
+
+function switchCustomer(){
+    saveCustomerProfile();
+    activeCustomer=document.getElementById('customerTab').value;
+    loadCustomerProfile();
+    document.getElementById('paymentMethod').value='Cash';
+    toggleGCash();
+    updateCartDisplay();
+    focusScanner();
+}
+function saveCustomerProfile(){
+    if(!customerProfiles[activeCustomer]) customerProfiles[activeCustomer]={name:'',contact:'',email:'',registered:false,customer_id:null,suki_level:'',source:'Walk-in'};
+    customerProfiles[activeCustomer].name=document.getElementById('saleCustomerName')?.value.trim() || '';
+    customerProfiles[activeCustomer].contact=document.getElementById('saleCustomerContact')?.value.trim() || '';
+    customerProfiles[activeCustomer].email=document.getElementById('saleCustomerEmail')?.value.trim() || '';
+}
+function loadCustomerProfile(){
+    const p=customerProfiles[activeCustomer] || {name:'',contact:'',email:''};
+    document.getElementById('saleCustomerName').value=p.name || '';
+    document.getElementById('saleCustomerContact').value=p.contact || '';
+    document.getElementById('saleCustomerEmail').value=p.email || '';
+    document.getElementById('activeCustomerBadge').innerText=activeCustomer;
+    refreshCustomerTabs();
+}
+function refreshCustomerTabs(){
+    const select=document.getElementById('customerTab');
+    Array.from(select.options).forEach(opt=>{
+        const p=customerProfiles[opt.value] || {};
+        const cartCount=(carts[opt.value]||[]).length;
+        const displayName=p.name ? p.name : 'Walk-in';
+        opt.textContent=`${opt.value} - ${displayName}${cartCount?` (${cartCount})`:''}`;
+    });
+}
+function clearActiveCustomer(){
+    if(!confirm('Clear this customer cart and details?')) return;
+    carts[activeCustomer]=[];
+    customerProfiles[activeCustomer]={name:'',contact:'',email:'',registered:false,customer_id:null,suki_level:'',source:'Walk-in'};
+    loadCustomerProfile();
+    updateCartDisplay();
+}
+
+function focusScanner(){
+    const input=document.getElementById('scannerInput');
+    if(input){ input.focus(); input.select(); }
+    setScanStatus('info','Ready to scan. USB barcode scanners work like keyboard input and usually press Enter automatically.');
+}
+
+function setScanStatus(type,message){
+    const el=document.getElementById('scanStatus');
+    if(!el) return;
+    el.className='scan-status '+type;
+    el.innerHTML=message;
+}
+
+document.addEventListener('DOMContentLoaded', function(){ focusScanner(); });
+
+document.getElementById("scannerInput").addEventListener("keydown", function(e){
+    if(e.key==='Enter'){
+        e.preventDefault();
+        searchItem();
+    }
+});
+
+document.getElementById("scannerInput").addEventListener("paste", function(){
+    setTimeout(searchItem, 80);
+});
+
+function searchItem(){
+    const input=document.getElementById('scannerInput');
+    const code=(input.value || '').replace(/[\r\n\t]+/g,'').trim();
+    if(!code){
+        focusScanner();
+        return;
+    }
+
+    setScanStatus('info',`Checking item code <strong>${code}</strong>...`);
+
+    fetch(`/api/get_item/${encodeURIComponent(code)}`)
+    .then(r=>r.json())
+    .then(result=>{
+        if(result.status==='success'){
+            const item=result.data;
+            let existing=(carts[activeCustomer]||[]).find(i=>i.sku===item.sku&&i.type==='Part');
+            let currentQty=existing?existing.qty:0;
+
+            if(currentQty+1>parseInt(item.stock_qty||0)){
+                setScanStatus('error',`Cannot add more. Only <strong>${item.stock_qty}</strong> stock available for <strong>${item.item_name}</strong>.`);
+                input.value='';
+                focusScanner();
+                return;
+            }
+
+            addToCart('Part', item.item_name, parseFloat(item.price), item.sku, parseInt(item.stock_qty||0));
+            setScanStatus('success',`Added <strong>${item.item_name}</strong> to ${activeCustomer}. Remaining stock: ${parseInt(item.stock_qty||0) - (currentQty+1)}.`);
+            input.value='';
+            focusScanner();
+        } else {
+            setScanStatus('error','Scan Error: '+result.message);
+            input.select();
+        }
+    })
+    .catch(err=>{
+        setScanStatus('error','Scanner connection error. Please check backend route /api/get_item.');
+        input.select();
+    });
+}
+function addStandardService(){ const val=document.getElementById('serviceSelect').value; if(!val){alert('Please select a service first.'); return;} const svc=JSON.parse(val); addToCart('Labor', svc.name, parseFloat(svc.price), 'LABOR-STD', 999999); $('#serviceSelect').val(null).trigger('change'); }
+function addCustomLabor(){ const name=document.getElementById('customLaborName').value.trim(); const price=parseFloat(document.getElementById('customLaborPrice').value); if(!name||!price||price<=0){alert('Enter valid labor description and amount.'); return;} addToCart('Labor', name, price, 'LABOR-CUSTOM', 999999); document.getElementById('customLaborName').value=''; document.getElementById('customLaborPrice').value=''; }
+function addOutsourcedPart(){ const name=document.getElementById('outsourcedPartName').value.trim(); const price=parseFloat(document.getElementById('outsourcedPartPrice').value); if(!name||!price||price<=0){alert('Enter valid outsourced part description and charge.'); return;} addToCart('Outsourced Part', name, price, 'OUTSOURCED-'+Date.now(), 999999); document.getElementById('outsourcedPartName').value=''; document.getElementById('outsourcedPartPrice').value=''; }
+function addToCart(type,name,price,sku,stock_qty){ let cart=carts[activeCustomer]; let existing=cart.find(i=>i.sku===sku&&i.name===name&&i.type===type); if(existing){ if(existing.qty+1>existing.stock_qty){alert('Not enough stock.'); return;} existing.qty+=1; } else { cart.push({type,name,price,sku,qty:1,stock_qty}); } updateCartDisplay(); refreshCustomerTabs(); }
+function removeItem(index){ carts[activeCustomer].splice(index,1); updateCartDisplay(); refreshCustomerTabs(); }
+function updateCartDisplay(){ const tbody=document.getElementById('cartTable'); tbody.innerHTML=''; total=0; let currentCart=carts[activeCustomer]||[]; if(currentCart.length===0){ tbody.innerHTML='<tr><td colspan="6" class="text-center text-muted py-5">No items yet. Scan a stocked part, add labor, or add an outsourced part to begin.</td></tr>'; } currentCart.forEach((item,index)=>{ const subtotal=item.qty*item.price; total+=subtotal; let badge=item.type==='Part'?'bg-primary':(item.type==='Outsourced Part'?'bg-warning text-dark':'bg-success'); tbody.innerHTML+=`<tr><td><span class="badge ${badge}">${item.type}</span></td><td class="fw-bold">${item.name}${item.type==='Part'?`<small class="d-block text-muted">Available: ${item.stock_qty}</small>`:''}</td><td class="text-center">${item.qty}</td><td class="text-end">₱${item.price.toFixed(2)}</td><td class="text-end fw-bold text-success">₱${subtotal.toFixed(2)}</td><td class="text-end"><button class="btn btn-sm btn-outline-danger" onclick="removeItem(${index})">Remove</button></td></tr>`; }); document.getElementById('totalAmount').innerText=total.toFixed(2); const btn=document.getElementById('checkoutBtn'); if(document.getElementById('paymentMethod').value==='GCash'){ btn.innerHTML='Confirm GCash Payment'; } else { btn.innerHTML='Complete Sale'; } }
+function toggleGCash(){ document.getElementById('gcashDiv').style.display=(document.getElementById('paymentMethod').value==='GCash')?'block':'none'; updateCartDisplay(); }
+function processCheckout(){
+    saveCustomerProfile();
+    const currentCart=carts[activeCustomer]||[];
+    if(currentCart.length===0){alert('Cart is empty.'); return;}
+    const method=document.getElementById('paymentMethod').value;
+    let gcashRef=null;
+    if(method==='GCash'){
+        gcashRef=document.getElementById('gcashReferenceInput').value.trim();
+        if(!gcashRef||gcashRef.length<5){alert('Please enter the GCash Reference Number after verifying payment.');return;}
+    }
+    const btn=document.getElementById('checkoutBtn'); btn.disabled=true; btn.innerText='Processing...';
+    fetch('/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        cart:currentCart,
+        payment_method:method,
+        total_amount:total,
+        gcash_ref:gcashRef,
+        customer:{
+            name:customerProfiles[activeCustomer].name,
+            contact:customerProfiles[activeCustomer].contact,
+            email:customerProfiles[activeCustomer].email,
+            customer_id:customerProfiles[activeCustomer].customer_id,
+            cart_label:activeCustomer
+        }
+    })})
+    .then(async r=>{ const data=await r.json(); if(!r.ok){ throw new Error(data.message || 'Checkout failed'); } return data; })
+    .then(data=>{ if(data.status==='success'){ alert(data.message); carts[activeCustomer]=[]; document.getElementById('gcashReferenceInput').value=''; customerProfiles[activeCustomer]={name:'',contact:'',email:'',registered:false,customer_id:null,suki_level:'',source:'Walk-in'}; loadCustomerProfile(); updateCartDisplay(); refreshCustomerTabs(); if(data.print_status === 'failed' && data.receipt_url){
+                const receiptWin = window.open(data.receipt_url, '_blank');
+                if(!receiptWin){
+                    alert('Receipt was created but printing failed. Open it from Sales History if needed.');
+                }
+            } } else { alert(data.message); } btn.disabled=false; updateCartDisplay(); })
+    .catch(err=>{ alert('Checkout error: '+err.message); btn.disabled=false; updateCartDisplay(); });
+}
+</script>
+{% endblock %}

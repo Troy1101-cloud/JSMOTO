@@ -1,0 +1,176 @@
+{% extends "layout.html" %}
+{% block content %}
+{% set customers = customers|default([]) %}
+{% set summary = summary|default({'total_customers':0,'registered_accounts':0,'sales_only':0,'verified_accounts':0,'suki_count':0,'top_suki_count':0,'total_customer_sales':0}) %}
+{% set filters = filters|default({}) %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h2 class="fw-bold mb-1">Customer Records</h2>
+        <p class="text-muted mb-0">Customer directory, registered accounts, walk-in sales records, and suki ranking.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="/export_customers_excel?search={{ filters.get('search','') }}&suki_level={{ filters.get('suki_level','') }}&account_type={{ filters.get('account_type','') }}" class="btn btn-success fw-bold">
+            <i class="fa-solid fa-file-excel me-2"></i>Export Customers
+        </a>
+        <a href="/users" class="btn btn-outline-secondary fw-bold">
+            <i class="fa-solid fa-users-cog me-2"></i>Staff Users
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="card-custom h-100">
+            <small class="text-muted fw-bold">Customers Shown</small>
+            <h3 class="fw-bold mb-0">{{ summary.get('total_customers',0) }}</h3>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="card-custom h-100">
+            <small class="text-muted fw-bold">Registered</small>
+            <h3 class="fw-bold text-primary mb-0">{{ summary.get('registered_accounts',0) }}</h3>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="card-custom h-100">
+            <small class="text-muted fw-bold">Sales Only</small>
+            <h3 class="fw-bold text-secondary mb-0">{{ summary.get('sales_only',0) }}</h3>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="card-custom h-100">
+            <small class="text-muted fw-bold">Verified</small>
+            <h3 class="fw-bold text-success mb-0">{{ summary.get('verified_accounts',0) }}</h3>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="card-custom h-100">
+            <small class="text-muted fw-bold">Suki / Top Suki</small>
+            <h3 class="fw-bold text-warning mb-0">{{ summary.get('suki_count',0) }}</h3>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="card-custom h-100">
+            <small class="text-muted fw-bold">Tracked Sales</small>
+            <h3 class="fw-bold text-success mb-0">₱{{ "{:,.2f}".format(summary.get('total_customer_sales',0)|float) }}</h3>
+        </div>
+    </div>
+</div>
+
+<div class="card-custom mb-4">
+    <form method="GET" action="/customers" class="row g-3 align-items-end">
+        <div class="col-lg-4">
+            <label class="form-label fw-bold">Search Customer</label>
+            <input type="text" name="search" class="form-control" value="{{ filters.get('search','') }}" placeholder="Name, email, contact, last receipt">
+        </div>
+        <div class="col-lg-3">
+            <label class="form-label fw-bold">Suki Level</label>
+            <select name="suki_level" class="form-select">
+                <option value="">All Levels</option>
+                {% for level in ['Top Suki','Suki','Customer','Registered'] %}
+                <option value="{{ level }}" {% if filters.get('suki_level') == level %}selected{% endif %}>{{ level }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-lg-3">
+            <label class="form-label fw-bold">Account Type</label>
+            <select name="account_type" class="form-select">
+                <option value="">All Types</option>
+                <option value="Registered" {% if filters.get('account_type') == 'Registered' %}selected{% endif %}>Registered Account</option>
+                <option value="Sales Only" {% if filters.get('account_type') == 'Sales Only' %}selected{% endif %}>Sales Only / Walk-in</option>
+                <option value="Verified" {% if filters.get('account_type') == 'Verified' %}selected{% endif %}>Verified Account</option>
+                <option value="Unverified" {% if filters.get('account_type') == 'Unverified' %}selected{% endif %}>Unverified Account</option>
+            </select>
+        </div>
+        <div class="col-lg-2 d-flex gap-2">
+            <button class="btn btn-primary fw-bold flex-fill"><i class="fa-solid fa-filter me-1"></i>Filter</button>
+            <a href="/customers" class="btn btn-outline-secondary fw-bold">Reset</a>
+        </div>
+    </form>
+</div>
+
+<div class="card-custom">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h5 class="fw-bold mb-0">Customer Directory</h5>
+            <small class="text-muted">Top Suki = 5+ purchases or ₱10,000+; Suki = 3+ purchases or ₱5,000+.</small>
+        </div>
+        <span class="badge bg-light text-dark border">{{ customers|length }} record(s)</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-dark table-striped table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Contact</th>
+                    <th>Email</th>
+                    <th>Account</th>
+                    <th class="text-center">Purchases</th>
+                    <th class="text-end">Total Spent</th>
+                    <th>Last Purchase</th>
+                    <th>Suki Level</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in customers %}
+                <tr>
+                    <td>
+                        <div class="fw-bold">{{ c.name }}</div>
+                        <small class="text-muted">{{ c.source }}</small>
+                    </td>
+                    <td>{{ c.contact or '-' }}</td>
+                    <td>{{ c.email or '-' }}</td>
+                    <td>
+                        {% if c.has_account %}
+                            {% if c.email_verified %}
+                                <span class="badge bg-success">Verified Account</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Unverified Account</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-secondary">Sales Only / Walk-in</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center fw-bold">{{ c.transaction_count }}</td>
+                    <td class="text-end fw-bold text-success">₱{{ "{:,.2f}".format(c.total_spent|float) }}</td>
+                    <td>
+                        {{ c.last_purchase[:10] if c.last_purchase else '-' }}
+                        {% if c.last_receipt %}
+                            <small class="text-muted d-block">{{ c.last_receipt }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.suki_level == 'Top Suki' %}
+                            <span class="badge bg-primary">Top Suki</span>
+                        {% elif c.suki_level == 'Suki' %}
+                            <span class="badge bg-info text-dark">Suki</span>
+                        {% elif c.suki_level == 'Customer' %}
+                            <span class="badge bg-light text-dark border">Customer</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Registered</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if c.last_receipt %}
+                        <a href="/print_receipt/{{ c.last_receipt }}" target="_blank" class="btn btn-sm btn-outline-primary">Last Receipt</a>
+                        {% else %}
+                        <span class="text-muted small">No sales</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-5">
+                        <i class="fa-solid fa-users fs-2 d-block mb-2"></i>
+                        No customer records matched the selected filters.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

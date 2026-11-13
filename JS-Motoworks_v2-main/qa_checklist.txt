@@ -1,0 +1,99 @@
+JS MOTOWORKS FINAL QA CHECKLIST
+
+A. LOGIN / ROLE ACCESS
+[ ] Admin can login.
+[ ] Cashier can login.
+[ ] Inventory staff can login.
+[ ] Customer can register.
+[ ] Customer receives OTP verification flow.
+[ ] Unverified customer cannot login.
+[ ] Verified customer can login.
+[ ] Customer sees customer-only pages.
+[ ] Cashier sees POS, Appointments, and Sales Records.
+[ ] Inventory staff sees Inventory and Audit Logs.
+[ ] Admin sees all modules.
+
+B. CUSTOMER BOOKING FLOW
+[ ] Customer books appointment from Booking page.
+[ ] Contact number is required.
+[ ] Appointment slot loads correctly.
+[ ] Booking confirmation page appears.
+[ ] Booking appears in Customer Portal / My Bookings.
+[ ] Public tracker can search using contact number.
+[ ] Customer can cancel pending/confirmed booking.
+
+C. ADMIN / CASHIER APPOINTMENT FLOW
+[ ] Admin/Cashier can view Appointment Management.
+[ ] Pending appointment can be confirmed.
+[ ] Appointment can be marked In Progress.
+[ ] Appointment can be marked Completed.
+[ ] Appointment can be marked No-Show.
+[ ] Cancelled appointment is labeled properly.
+[ ] Status changes are visible to customer.
+
+D. INVENTORY FLOW
+[ ] Add new inventory item.
+[ ] Item Code / Barcode is required.
+[ ] Duplicate item code is handled properly.
+[ ] Stock quantity updates correctly.
+[ ] Low stock status appears when quantity is at/below par level.
+[ ] Out-of-stock status appears at 0 quantity.
+[ ] Stock adjustment logs are created.
+[ ] Inventory search/filter works.
+
+E. POS FLOW
+[ ] Scanner input is focused on POS.
+[ ] Manual Item Code then Enter adds item.
+[ ] USB barcode scan adds item.
+[ ] Out-of-stock item is blocked.
+[ ] Labor/service item can be added.
+[ ] Custom labor can be added.
+[ ] Outsourced part can be added without inventory deduction.
+[ ] Registered customer search auto-selects first match.
+[ ] Customer details auto-fill after selection.
+[ ] Walk-in customer still works.
+[ ] Cash checkout saves transaction.
+[ ] GCash checkout requires reference number.
+[ ] Sale appears in Sales Records.
+[ ] Inventory stock deducts after part sale.
+[ ] Customer Records update after sale.
+
+F. SALES RECORDS / ARCHIVES
+[ ] Active Sales tab shows non-archived, non-voided sales.
+[ ] Archived Sales tab shows archived records.
+[ ] Voided Sales tab shows voided records.
+[ ] All Records tab shows all sales records.
+[ ] Admin can archive a sale.
+[ ] Admin can restore archived sale.
+[ ] Receipt can be viewed from Sales Records.
+[ ] Export filtered report works.
+
+G. RECEIPT / PRINTER
+[ ] Browser receipt page opens.
+[ ] Receipt shows receipt number.
+[ ] Receipt shows readable PH date/time.
+[ ] Receipt shows customer info.
+[ ] Receipt shows items, qty, price, and total.
+[ ] Receipt shows VAT summary.
+[ ] Printer output is set aside for final paper retest.
+[ ] Known limitation wording is ready.
+
+H. DASHBOARD / REPORTS
+[ ] Dashboard loads without error.
+[ ] Sales totals reflect current records.
+[ ] Low stock/out-of-stock alerts appear.
+[ ] Recent sales appear.
+[ ] Appointment summary appears.
+[ ] Reports/analytics values are reasonable.
+
+I. AUDIT LOGS
+[ ] Inventory changes create logs.
+[ ] Appointment/status activities are traceable where applicable.
+[ ] Logs are readable and sorted.
+
+J. FINAL CLEANUP
+[ ] No visible debug/test pages.
+[ ] No prototype text in receipt/customer pages.
+[ ] Sidebar role access is correct.
+[ ] Empty states are clear.
+[ ] Browser console has no critical errors during demo flow.

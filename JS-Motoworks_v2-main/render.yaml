@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: js-motoworks
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.10
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: RECEIPT_PRINTER_NAME
+        value: POS-58

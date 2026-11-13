@@ -1,0 +1,358 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1">Operations Dashboard</h2>
+            <p class="text-muted mb-0">A quick overview of sales, inventory, appointments, and customer activity.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="/pos" class="btn btn-primary fw-bold"><i class="fa-solid fa-cash-register me-2"></i>Open POS</a>
+            <a href="/inventory" class="btn btn-outline-primary fw-bold"><i class="fa-solid fa-boxes me-2"></i>Inventory</a>
+        </div>
+    </div>
+
+    {% if action_alerts %}
+    <div class="row g-3 mb-4">
+        {% for alert in action_alerts[:4] %}
+        <div class="col-lg-3 col-md-6">
+            <div class="card-custom h-100 border-start border-{{ alert.level }} border-4">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="rounded-circle bg-{{ alert.level }} bg-opacity-10 text-{{ alert.level }} d-flex align-items-center justify-content-center" style="width:44px;height:44px;">
+                        <i class="fa-solid {{ alert.icon }}"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold">{{ alert.title }}</div>
+                        <small class="text-muted">{{ alert.detail }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card-custom h-100 border-start border-success border-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted fw-bold">SALES TODAY</small>
+                        <h3 class="fw-bold text-success mb-0">₱{{ "{:,.2f}".format(sales_today|float) }}</h3>
+                    </div>
+                    <i class="fa-solid fa-wallet text-success fs-2 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card-custom h-100 border-start border-primary border-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted fw-bold">SALES THIS MONTH</small>
+                        <h3 class="fw-bold text-primary mb-0">₱{{ "{:,.2f}".format(sales_month|float) }}</h3>
+                    </div>
+                    <i class="fa-solid fa-chart-line text-primary fs-2 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card-custom h-100 border-start border-danger border-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted fw-bold">STOCK ALERTS</small>
+                        <h3 class="fw-bold text-danger mb-0">{{ low_stock + out_of_stock }}</h3>
+                        <small class="text-muted">{{ low_stock }} low / {{ out_of_stock }} out of stock</small>
+                    </div>
+                    <i class="fa-solid fa-triangle-exclamation text-danger fs-2 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card-custom h-100 border-start border-info border-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted fw-bold">APPOINTMENTS TODAY</small>
+                        <h3 class="fw-bold text-info mb-0">{{ today_appointments }}</h3>
+                        <small class="text-muted">{{ pending_appointments }} pending / {{ confirmed_appointments }} confirmed</small>
+                    </div>
+                    <i class="fa-solid fa-calendar-check text-info fs-2 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-8">
+            <div class="card-custom h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="fw-bold mb-0">7-Day Sales Trend</h5>
+                        <small class="text-muted">Non-voided and non-archived sales only.</small>
+                    </div>
+                    <span class="badge bg-light text-dark border">Last 7 days</span>
+                </div>
+                <canvas id="salesTrendChart" height="110"></canvas>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card-custom h-100">
+                <h5 class="fw-bold mb-3">Payment Breakdown</h5>
+                <canvas id="paymentChart" height="210"></canvas>
+                {% if gcash_missing_ref %}
+                <div class="alert alert-danger border-0 rounded-4 mt-3 mb-0 small">
+                    <i class="fa-solid fa-circle-exclamation me-1"></i>
+                    {{ gcash_missing_ref }} GCash transaction(s) missing reference number.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-4">
+            <div class="card-custom h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">Critical Inventory</h5>
+                    <a href="/inventory" class="btn btn-sm btn-outline-primary">Manage</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Item</th>
+                                <th class="text-center">Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for item in critical_items %}
+                            <tr>
+                                <td class="fw-bold">{{ item.sku }}</td>
+                                <td>
+                                    <div class="fw-semibold">{{ item.item_name }}</div>
+                                    <small class="text-muted">{{ item.category or 'Uncategorized' }}</small>
+                                </td>
+                                <td class="text-center">
+                                    {% if item.stock_qty <= 0 %}
+                                        <span class="badge bg-danger">Out of stock</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">{{ item.stock_qty }}/{{ item.par_level }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="3" class="text-center text-muted py-4">No critical stock alerts.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card-custom h-100">
+                <h5 class="fw-bold mb-3">Upcoming Appointments</h5>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date/Time</th>
+                                <th>Customer</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for appt in upcoming_appointments %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ appt.appointment_date }}</div>
+                                    <small class="text-muted">{{ appt.appointment_time }}</small>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">{{ appt.customer_name }}</div>
+                                    <small class="text-muted">{{ appt.service_requested }}</small>
+                                </td>
+                                <td>
+                                    {% if appt.status == 'Confirmed' %}
+                                        <span class="badge bg-info text-dark">Confirmed</span>
+                                    {% elif appt.status == 'In Progress' %}
+                                        <span class="badge bg-primary">In Progress</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">{{ appt.status or 'Pending' }}</span>
+                                    {% endif %}
+                                    {% if not appt.email_verified %}
+                                        <div><small class="text-warning">Email pending</small></div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="3" class="text-center text-muted py-4">No upcoming active appointments.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if pending_verification %}
+                <div class="alert alert-warning border-0 rounded-4 mt-3 mb-0 small">
+                    <i class="fa-solid fa-envelope me-1"></i>
+                    {{ pending_verification }} booking(s) still need email verification.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card-custom h-100">
+                <h5 class="fw-bold mb-3">Top Customers</h5>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Customer</th>
+                                <th class="text-center">Txn</th>
+                                <th class="text-end">Spent</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for customer in top_customers %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ customer.name }}</div>
+                                    <small class="text-muted">{{ customer.email or customer.contact or 'No contact' }}</small>
+                                </td>
+                                <td class="text-center fw-bold">{{ customer.transactions }}</td>
+                                <td class="text-end text-success fw-bold">₱{{ "{:,.2f}".format(customer.total_spent|float) }}</td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="3" class="text-center text-muted py-4">No customer-linked sales yet.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <a href="/customers" class="btn btn-outline-primary btn-sm w-100 mt-3">Open Customer Records</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-xl-5">
+            <div class="card-custom h-100">
+                <h5 class="fw-bold mb-3">Top Moving Items</h5>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-end">Sales</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for item in top_items %}
+                            <tr>
+                                <td class="fw-semibold">{{ item.name }}</td>
+                                <td class="text-center fw-bold">{{ item.qty }}</td>
+                                <td class="text-end text-success">₱{{ "{:,.2f}".format(item.subtotal|float) }}</td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="3" class="text-center text-muted py-4">No item sales yet.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-7">
+            <div class="card-custom h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">Recent Transactions</h5>
+                    <a href="/sales" class="btn btn-sm btn-outline-primary">View Sales</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Receipt</th>
+                                <th>Customer</th>
+                                <th>Payment</th>
+                                <th class="text-end">Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for sale in recent_sales %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ sale.receipt_no }}</div>
+                                    <small class="text-muted">{{ sale.transaction_date[:16] if sale.transaction_date else '-' }}</small>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">{{ sale.customer_name or 'Walk-in / Unspecified' }}</div>
+                                    <small class="text-muted">{{ sale.customer_email or sale.customer_contact or '-' }}</small>
+                                </td>
+                                <td>
+                                    {% if sale.payment_method == 'GCash' %}
+                                        <span class="badge bg-primary">GCash</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Cash</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end text-success fw-bold">₱{{ "{:,.2f}".format(sale.total_amount|float) }}</td>
+                                <td class="text-end">
+                                    <a href="/print_receipt/{{ sale.receipt_no }}" target="_blank" class="btn btn-sm btn-outline-secondary">Receipt</a>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="5" class="text-center text-muted py-4">No recent transactions.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const chartDates = {{ chart_dates | tojson | safe }};
+const chartSales = {{ chart_sales | tojson | safe }};
+const payLabels = {{ pay_labels | tojson | safe }};
+const payData = {{ pay_data | tojson | safe }};
+const apptLabels = {{ appt_labels | tojson | safe }};
+const apptData = {{ appt_data | tojson | safe }};
+
+function makeChart(canvasId, chartType, labels, data, label) {
+    const el = document.getElementById(canvasId);
+    if (!el || labels.length === 0) return;
+    new Chart(el.getContext('2d'), {
+        type: chartType,
+        data: {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: data,
+                borderWidth: 2,
+                fill: chartType === 'line',
+                tension: 0.35
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: chartType !== 'line' }
+            },
+            scales: chartType === 'line' ? {
+                y: { beginAtZero: true },
+                x: {}
+            } : {}
+        }
+    });
+}
+
+makeChart('salesTrendChart', 'line', chartDates, chartSales, 'Daily Sales');
+makeChart('paymentChart', 'doughnut', payLabels, payData, 'Payment Amount');
+</script>
+{% endblock %}

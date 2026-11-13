@@ -1,0 +1,210 @@
+{% extends "layout.html" %}
+{% block content %}
+{% set appointments = appointments|default([]) %}
+{% set summary = summary|default({}) %}
+{% set email_summary = email_summary|default({}) %}
+{% set status_options = status_options|default(['Pending','Confirmed','In Progress','Completed','Cancelled','No Show']) %}
+{% set filters = filters|default({}) %}
+{% set max_date = max_date|default('') %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h2 class="fw-bold mb-1">Appointment Management</h2>
+        <p class="text-muted mb-0">Review bookings, verify email status, and update service progress.</p>
+    </div>
+    <a href="/book" target="_blank" class="btn btn-outline-primary fw-bold">
+        <i class="fa-solid fa-calendar-plus me-2"></i>Open Booking Page
+    </a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-2 col-6">
+        <div class="card-custom h-100">
+            <small class="text-muted fw-bold">Pending</small>
+            <h3 class="fw-bold text-warning mb-0">{{ summary.get('Pending', 0) }}</h3>
+        </div>
+    </div>
+    <div class="col-md-2 col-6">
+        <div class="card-custom h-100">
+            <small class="text-muted fw-bold">Confirmed</small>
+            <h3 class="fw-bold text-info mb-0">{{ summary.get('Confirmed', 0) }}</h3>
+        </div>
+    </div>
+    <div class="col-md-2 col-6">
+        <div class="card-custom h-100">
+            <small class="text-muted fw-bold">In Progress</small>
+            <h3 class="fw-bold text-primary mb-0">{{ summary.get('In Progress', 0) }}</h3>
+        </div>
+    </div>
+    <div class="col-md-2 col-6">
+        <div class="card-custom h-100">
+            <small class="text-muted fw-bold">Completed</small>
+            <h3 class="fw-bold text-success mb-0">{{ summary.get('Completed', 0) }}</h3>
+        </div>
+    </div>
+    <div class="col-md-2 col-6">
+        <div class="card-custom h-100">
+            <small class="text-muted fw-bold">Cancelled</small>
+            <h3 class="fw-bold text-danger mb-0">{{ summary.get('Cancelled', 0) }}</h3>
+        </div>
+    </div>
+    <div class="col-md-2 col-6">
+        <div class="card-custom h-100">
+            <small class="text-muted fw-bold">Email Pending</small>
+            <h3 class="fw-bold text-warning mb-0">{{ email_summary.get('unverified', 0) }}</h3>
+        </div>
+    </div>
+</div>
+
+<div class="card-custom mb-4">
+    <form method="GET" class="row g-3 align-items-end">
+        <div class="col-lg-3">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" value="{{ filters.get('search','') }}" class="form-control" placeholder="Name, contact, email, model, service">
+        </div>
+        <div class="col-lg-2">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+                <option value="">All Statuses</option>
+                {% for s in status_options %}
+                    <option value="{{ s }}" {% if filters.get('status','') == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-lg-2">
+            <label class="form-label">Date From</label>
+            <input type="date" name="date_from" value="{{ filters.get('date_from','') }}" class="form-control" max="{{ max_date }}">
+        </div>
+        <div class="col-lg-2">
+            <label class="form-label">Date To</label>
+            <input type="date" name="date_to" value="{{ filters.get('date_to','') }}" class="form-control" max="{{ max_date }}">
+        </div>
+        <div class="col-lg-3 d-flex gap-2">
+            <button class="btn btn-primary fw-bold flex-fill"><i class="fa-solid fa-filter me-2"></i>Apply</button>
+            <a href="/appointments" class="btn btn-outline-secondary fw-bold">Reset</a>
+        </div>
+    </form>
+</div>
+
+<div class="card-custom">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h5 class="fw-bold mb-0">Booking List</h5>
+            <small class="text-muted">{{ appointments|length }} record(s) shown.</small>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <span class="badge bg-success">Email Sent: {{ email_summary.get('sent', 0) }}</span>
+            <span class="badge bg-danger">Failed: {{ email_summary.get('failed', 0) }}</span>
+            <span class="badge bg-secondary">Not Sent: {{ email_summary.get('not_sent', 0) }}</span>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-dark table-striped table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Schedule</th>
+                    <th>Customer</th>
+                    <th>Motorcycle / Service</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Cancellation</th>
+                    <th style="min-width:260px;">Update Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for a in appointments %}
+                {% set status = a.get('status') or 'Pending' %}
+                <tr>
+                    <td>
+                        <div class="fw-bold">{{ a.get('appointment_date','-') }}</div>
+                        <small class="text-muted">{{ a.get('appointment_time','-') }}</small>
+                    </td>
+                    <td>
+                        <div class="fw-bold">{{ a.get('customer_name','-') }}</div>
+                        <small class="text-muted d-block">{{ a.get('contact_number','-') }}</small>
+                        <small class="text-muted">{{ a.get('customer_email') or '-' }}</small>
+                    </td>
+                    <td>
+                        <div class="fw-semibold">{{ a.get('motorcycle_model','-') }}</div>
+                        <small class="text-muted">{{ a.get('service_requested','-') }}</small>
+                        {% if a.get('customer_notes') %}
+                            <div><small class="text-muted">Note: {{ a.get('customer_notes') }}</small></div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if a.get('email_verified') %}
+                            <span class="badge bg-success">Verified</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Unverified</span>
+                        {% endif %}
+                        <div class="mt-1">
+                            {% set delivery = (a.get('email_delivery_status') or '')|lower %}
+                            {% if 'sent' in delivery %}
+                                <span class="badge bg-success">Sent</span>
+                            {% elif 'fail' in delivery or 'error' in delivery %}
+                                <span class="badge bg-danger">Failed</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Not sent</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        {% if status == 'Pending' %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                        {% elif status == 'Confirmed' %}
+                            <span class="badge bg-info text-dark">Confirmed</span>
+                        {% elif status == 'In Progress' %}
+                            <span class="badge bg-primary">In Progress</span>
+                        {% elif status == 'Completed' %}
+                            <span class="badge bg-success">Completed</span>
+                        {% elif status == 'Cancelled' %}
+                            <span class="badge bg-danger">Cancelled</span>
+                        {% elif status == 'No Show' %}
+                            <span class="badge bg-secondary">No Show</span>
+                        {% else %}
+                            <span class="badge bg-light text-dark border">{{ status }}</span>
+                        {% endif %}
+                        <div><small class="text-muted">By: {{ a.get('updated_by') or '-' }}</small></div>
+                    </td>
+                    <td>
+                        {% if status == 'Cancelled' %}
+                            <div class="fw-semibold text-danger">{{ a.get('cancellation_requested_by') or 'Cancelled' }}</div>
+                            <small class="text-muted">{{ a.get('cancelled_at','')[:16] if a.get('cancelled_at') else '-' }}</small>
+                            {% if a.get('cancellation_reason') %}
+                                <div><small class="text-muted">{{ a.get('cancellation_reason') }}</small></div>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted small">Active booking</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="POST" action="/update_appointment/{{ a.get('appointment_id') }}" class="d-grid gap-2">
+                            <select name="status" class="form-select form-select-sm">
+                                {% for s in status_options %}
+                                    <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                            <input type="text" name="admin_notes" class="form-control form-control-sm" placeholder="Optional staff note / cancellation reason">
+                            <label class="small text-muted">
+                                <input type="checkbox" name="send_email" checked> Send email update
+                            </label>
+                            <button class="btn btn-sm btn-primary fw-bold" type="submit">
+                                <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">
+                        <i class="fa-regular fa-calendar-xmark fs-2 d-block mb-2"></i>
+                        No appointments found for the selected filters.
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

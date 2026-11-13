@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Appointment | JS Motoworks</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo.jpg', v=1) }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+:root{
+    --bg:#f4f7fb;
+    --surface:#ffffff;
+    --surface-2:#f8fafc;
+    --line:#e5e7eb;
+    --text:#111827;
+    --muted:#6b7280;
+    --primary:#2563eb;
+    --primary-dark:#1d4ed8;
+    --success:#16a34a;
+    --warning:#d97706;
+    --danger:#dc2626;
+    --info:#0891b2;
+    --shadow:0 18px 45px rgba(15,23,42,.08);
+}
+*{box-sizing:border-box}
+body{
+    font-family:'Inter','Poppins',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:
+        radial-gradient(circle at top left, rgba(37,99,235,.12), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(15,118,110,.10), transparent 30%),
+        var(--bg);
+    color:var(--text);
+    min-height:100vh;
+}
+.public-shell{min-height:100vh;display:flex;flex-direction:column}
+.topbar{
+    background:rgba(255,255,255,.92);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:20;
+}
+.brand-mark{
+    width:42px;height:42px;border-radius:12px;
+    background:linear-gradient(135deg,var(--primary),#0f766e);
+    color:white;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 10px 20px rgba(37,99,235,.22);
+}
+.brand-title{font-weight:800;letter-spacing:-.03em;color:var(--text)}
+.brand-subtitle{font-size:.75rem;color:var(--muted);line-height:1}
+.hero-card,.panel-card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:24px;
+    box-shadow:var(--shadow);
+}
+.section-eyebrow{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;
+    color:var(--primary);font-weight:800;
+}
+.page-title{font-weight:850;letter-spacing:-.04em}
+.helper-text{color:var(--muted);line-height:1.7}
+.form-control,.form-select{
+    background:#fff!important;color:var(--text)!important;
+    border:1px solid #cbd5e1!important;border-radius:12px!important;
+    padding:12px 14px!important;
+}
+.form-control:focus,.form-select:focus{
+    border-color:var(--primary)!important;
+    box-shadow:0 0 0 .2rem rgba(37,99,235,.14)!important;
+}
+.form-label{font-weight:700;font-size:.88rem;color:#374151}
+.btn-primary{
+    background:var(--primary)!important;border-color:var(--primary)!important;
+    border-radius:12px!important;font-weight:700;
+}
+.btn-primary:hover{background:var(--primary-dark)!important;border-color:var(--primary-dark)!important}
+.btn-outline-primary,.btn-outline-secondary,.btn-outline-danger{
+    border-radius:12px!important;font-weight:700;
+}
+.badge-soft{
+    display:inline-flex;align-items:center;gap:.35rem;
+    padding:.45rem .7rem;border-radius:999px;font-weight:800;font-size:.78rem;
+}
+.badge-soft.primary{background:#eff6ff;color:#1d4ed8}
+.badge-soft.success{background:#ecfdf5;color:#15803d}
+.badge-soft.warning{background:#fffbeb;color:#b45309}
+.badge-soft.danger{background:#fef2f2;color:#b91c1c}
+.badge-soft.info{background:#ecfeff;color:#0e7490}
+.info-tile{
+    border:1px solid var(--line);background:var(--surface-2);
+    border-radius:18px;padding:16px;height:100%;
+}
+.info-tile i{color:var(--primary)}
+.footer-note{color:var(--muted);font-size:.85rem}
+.table-clean{--bs-table-bg:#fff;--bs-table-border-color:var(--line);vertical-align:middle}
+.status-card{
+    border:1px solid var(--line);border-radius:18px;background:#fff;padding:18px;
+}
+@media(max-width:768px){
+    .hero-card,.panel-card{border-radius:18px}
+    .page-title{font-size:2rem}
+}
+</style>
+</head>
+<body>
+<div class="public-shell">
+    <nav class="topbar py-3">
+        <div class="container d-flex justify-content-between align-items-center">
+            <a href="/customer_portal" class="d-flex align-items-center gap-3 text-decoration-none">
+                <div class="brand-mark"><i class="fa-solid fa-motorcycle"></i></div>
+                <div>
+                    <div class="brand-title">JS Motoworks</div>
+                    <div class="brand-subtitle">Service Appointment System</div>
+                </div>
+            </a>
+            <div class="d-flex gap-2">
+                <a href="/track_booking" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-search me-1"></i> Track</a>
+                <a href="/customer_portal" class="btn btn-primary btn-sm"><i class="fa-solid fa-user me-1"></i> Portal</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container py-5">
+        <div class="row g-4 align-items-stretch">
+            <div class="col-lg-5">
+                <div class="hero-card p-4 p-lg-5 h-100">
+                    <div class="section-eyebrow mb-2">Book a service slot</div>
+                    <h1 class="page-title mb-3">Choose an available schedule for your motorcycle service.</h1>
+                    <p class="helper-text mb-4">
+                        Select a date first, then choose from the available time slots for that day.
+                        Your booking will be linked to your logged-in customer account.
+                    </p>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="info-tile">
+                                <i class="fa-solid fa-user-check mb-2"></i>
+                                <div class="fw-bold">Customer account</div>
+                                <div class="small text-muted">{{ account_name if account_name else session.get('full_name','Logged-in customer') }}</div>
+                                <div class="small text-muted">{{ account_email if account_email else session.get('email','') }}</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="info-tile">
+                                <i class="fa-regular fa-clock mb-2"></i>
+                                <div class="fw-bold">Shop hours</div>
+                                <div class="small text-muted">{{ shop_open if shop_open else '08:00' }} - {{ shop_close if shop_close else '19:00' }}</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="info-tile">
+                                <i class="fa-solid fa-list-check mb-2"></i>
+                                <div class="fw-bold">Live slots</div>
+                                <div class="small text-muted">Only available times appear in the dropdown.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <p class="footer-note mb-0">
+                        Need to cancel later? Go to your Customer Portal. Cancellation is allowed while the booking is Pending or Confirmed.
+                    </p>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="panel-card p-4 p-lg-5">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+                        <div>
+                            <div class="section-eyebrow">Appointment form</div>
+                            <h3 class="fw-bold mb-0">Service details</h3>
+                        </div>
+                        <span class="badge-soft primary"><i class="fa-solid fa-shield-halved"></i> Verified login required</span>
+                    </div>
+
+                    {% if error %}
+                    <div class="alert alert-danger border-0 rounded-4">
+                        <i class="fa-solid fa-circle-exclamation me-2"></i>{{ error }}
+                    </div>
+                    {% endif %}
+
+                    <div class="alert alert-info rounded-4 small mb-3"><strong>Reminder:</strong> All appointments are served on-site at JS Motoworks. Online booking is for scheduling only; payment is handled in-store.</div>
+<form method="POST" action="/book" id="bookingForm">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Customer Name</label>
+                                <input type="text" class="form-control" value="{{ account_name if account_name else session.get('full_name','') }}" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Account Email</label>
+                                <input type="email" class="form-control" value="{{ account_email if account_email else session.get('email','') }}" readonly>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Contact Number</label>
+                                <input type="text" name="contact_number" class="form-control" placeholder="09XXXXXXXXX"
+                                       value="{{ form_data.contact_number if form_data else '' }}" required maxlength="11">
+                                <div class="form-text">Use an active Philippine mobile number.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Motorcycle Model</label>
+                                <input type="text" name="motorcycle_model" class="form-control" placeholder="e.g., Honda Click 125"
+                                       value="{{ form_data.motorcycle_model if form_data else '' }}" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Service Type</label>
+                                <select name="service_category" class="form-select" required>
+                                    <option value="">Select service type</option>
+                                    {% set selected_service = form_data.service_category if form_data else '' %}
+                                    <option value="Oil Change" {{ 'selected' if selected_service == 'Oil Change' else '' }}>Oil Change</option>
+                                    <option value="Tune-up" {{ 'selected' if selected_service == 'Tune-up' else '' }}>Tune-up</option>
+                                    <option value="Brake Service" {{ 'selected' if selected_service == 'Brake Service' else '' }}>Brake Service</option>
+                                    <option value="Tire / Wheel Service" {{ 'selected' if selected_service == 'Tire / Wheel Service' else '' }}>Tire / Wheel Service</option>
+                                    <option value="Electrical Check" {{ 'selected' if selected_service == 'Electrical Check' else '' }}>Electrical Check</option>
+                                    <option value="General Repair" {{ 'selected' if selected_service == 'General Repair' else '' }}>General Repair</option>
+                                    <option value="Other" {{ 'selected' if selected_service == 'Other' else '' }}>Other / Consultation</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Preferred Date</label>
+                                <input type="date" name="appointment_date" id="appointmentDate" class="form-control"
+                                       min="{{ min_date }}" value="{{ form_data.appointment_date if form_data else '' }}" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Available Time Slot</label>
+                                <select name="appointment_time" id="appointmentTime" class="form-select" required disabled>
+                                    <option value="">Select date first</option>
+                                </select>
+                                <div class="form-text" id="slotHelp">Slots are loaded based on selected date.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Additional Notes</label>
+                                <input type="text" name="customer_notes" class="form-control" placeholder="Optional issue or request"
+                                       value="{{ form_data.customer_notes if form_data else '' }}">
+                            </div>
+
+                            <div class="col-12 mt-4">
+                                <button type="submit" class="btn btn-primary btn-lg w-100">
+                                    <i class="fa-solid fa-calendar-check me-2"></i>Submit Booking Request
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+const dateInput = document.getElementById('appointmentDate');
+const timeSelect = document.getElementById('appointmentTime');
+const slotHelp = document.getElementById('slotHelp');
+const selectedFromServer = "{{ form_data.appointment_time if form_data else '' }}";
+
+function formatTimeLabel(timeValue) {
+    const [hour, minute] = timeValue.split(':').map(Number);
+    const d = new Date();
+    d.setHours(hour, minute, 0, 0);
+    return d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+}
+
+async function loadSlots() {
+    const selectedDate = dateInput.value;
+    timeSelect.innerHTML = '<option value="">Loading slots...</option>';
+    timeSelect.disabled = true;
+    slotHelp.textContent = 'Checking available schedules...';
+
+    if (!selectedDate) {
+        timeSelect.innerHTML = '<option value="">Select date first</option>';
+        slotHelp.textContent = 'Slots are loaded based on selected date.';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/available_slots?date=${encodeURIComponent(selectedDate)}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            throw new Error('Slot API returned an HTML page instead of JSON. Please refresh/login again, then try another date.');
+        }
+
+        const data = await response.json();
+
+        if (data.status !== 'success') throw new Error(data.message || 'Unable to load slots.');
+
+        const available = (data.slots || []).filter(slot => !slot.full && slot.remaining > 0);
+        timeSelect.innerHTML = '';
+
+        if (available.length === 0) {
+            timeSelect.innerHTML = '<option value="">No available slots for this date</option>';
+            slotHelp.textContent = 'Please choose another date.';
+            return;
+        }
+
+        timeSelect.innerHTML = '<option value="">Select available time</option>';
+        available.forEach(slot => {
+            const opt = document.createElement('option');
+            opt.value = slot.time;
+            opt.textContent = `${formatTimeLabel(slot.time)} — ${slot.remaining} slot(s) left`;
+            if (selectedFromServer && selectedFromServer === slot.time) opt.selected = true;
+            timeSelect.appendChild(opt);
+        });
+
+        timeSelect.disabled = false;
+        slotHelp.textContent = `${available.length} available time slot(s) found.`;
+    } catch (err) {
+        timeSelect.innerHTML = '<option value="">Unable to load slots</option>';
+        slotHelp.textContent = err.message;
+    }
+}
+
+dateInput.addEventListener('change', loadSlots);
+if (dateInput.value) loadSlots();
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    const bookingForm = document.querySelector('form[action="/book"], form[action="{{ url_for('book_appointment') }}"], form[method="POST"]');
+    const contactInput = document.querySelector('input[name="contact_number"]');
+
+    if(contactInput){
+        contactInput.setAttribute('required','required');
+        contactInput.setAttribute('pattern','09[0-9]{9}');
+        contactInput.setAttribute('maxlength','11');
+        contactInput.addEventListener('input', function(){
+            this.value = this.value.replace(/\D/g,'').slice(0,11);
+        });
+    }
+
+    if(bookingForm && contactInput){
+        bookingForm.addEventListener('submit', function(e){
+            const value = (contactInput.value || '').trim();
+            if(!/^09\d{9}$/.test(value)){
+                e.preventDefault();
+                alert('Contact number is required. Please enter a valid PH mobile number like 09XXXXXXXXX.');
+                contactInput.focus();
+            }
+        });
+    }
+});
+</script>
+
+</body>
+</html>

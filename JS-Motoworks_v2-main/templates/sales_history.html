@@ -1,0 +1,247 @@
+{% extends "layout.html" %}
+{% block content %}
+{% set sales = sales|default([]) %}
+{% set filters = filters|default({}) %}
+{% set top_items = top_items|default([]) %}
+{% set top_customers = top_customers|default([]) %}
+{% set status_urls = status_urls|default({}) %}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1">Sales Reports & Analytics</h2>
+            <p class="text-muted mb-0">Filter sales, trace customers, review receipts, and export itemized reports.</p>
+        </div>
+        <a href="/export_sales_excel?start_date={{ filters.get('start_date','') }}&end_date={{ filters.get('end_date','') }}&payment_method={{ filters.get('payment_method','') }}&customer={{ filters.get('customer','') }}&receipt={{ filters.get('receipt','') }}&gcash_ref={{ filters.get('gcash_ref','') }}&record_status={{ filters.get('record_status','active') }}" class="btn btn-success fw-bold">
+            <i class="fa-solid fa-file-excel me-2"></i>Export Filtered Report
+        </a>
+    </div>
+
+    {% if missing_gcash_refs and missing_gcash_refs > 0 %}
+    <div class="alert alert-warning border-0 rounded-4">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        {{ missing_gcash_refs }} GCash transaction(s) in this view have no reference number.
+    </div>
+    {% endif %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-3 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">Total Sales</small>
+                <h3 class="fw-bold text-success mb-0">₱{{ "{:,.2f}".format(total_sales|float) }}</h3>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">Transactions</small>
+                <h3 class="fw-bold text-primary mb-0">{{ total_transactions }}</h3>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">Cash</small>
+                <h3 class="fw-bold mb-0">₱{{ "{:,.2f}".format(cash_total|float) }}</h3>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">GCash</small>
+                <h3 class="fw-bold mb-0">₱{{ "{:,.2f}".format(gcash_total|float) }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-custom mb-4">
+        <form action="/sales" method="GET" class="row g-3 align-items-end">
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Start Date</label>
+                <input type="date" name="start_date" class="form-control" value="{{ filters.get('start_date','') }}" max="{{ max_date }}">
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">End Date</label>
+                <input type="date" name="end_date" class="form-control" value="{{ filters.get('end_date','') }}" max="{{ max_date }}">
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Payment</label>
+                <select name="payment_method" class="form-select">
+                    <option value="">All</option>
+                    <option value="Cash" {% if filters.get('payment_method') == 'Cash' %}selected{% endif %}>Cash</option>
+                    <option value="GCash" {% if filters.get('payment_method') == 'GCash' %}selected{% endif %}>GCash</option>
+                </select>
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Record Status</label>
+                <select name="record_status" class="form-select">
+                    <option value="active" {% if filters.get('record_status','active') == 'active' %}selected{% endif %}>Active</option>
+                    <option value="archived" {% if filters.get('record_status') == 'archived' %}selected{% endif %}>Archived</option>
+                    <option value="voided" {% if filters.get('record_status') == 'voided' %}selected{% endif %}>Voided</option>
+                    <option value="all" {% if filters.get('record_status') == 'all' %}selected{% endif %}>All Records</option>
+                </select>
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Customer</label>
+                <input type="text" name="customer" class="form-control" value="{{ filters.get('customer','') }}" placeholder="Name, email, contact">
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Receipt No.</label>
+                <input type="text" name="receipt" class="form-control" value="{{ filters.get('receipt','') }}" placeholder="Receipt">
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">GCash Ref</label>
+                <input type="text" name="gcash_ref" class="form-control" value="{{ filters.get('gcash_ref','') }}" placeholder="Reference">
+            </div>
+            <div class="col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary fw-bold"><i class="fa-solid fa-filter me-2"></i>Apply Filters</button>
+                <a href="/sales?record_status=active" class="btn btn-outline-secondary fw-bold">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-6">
+            <div class="card-custom h-100">
+                <h5 class="fw-bold mb-3">Top Items by Sales Amount</h5>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm align-middle mb-0">
+                        <thead><tr><th>Item</th><th>Type</th><th class="text-center">Qty</th><th class="text-end">Subtotal</th></tr></thead>
+                        <tbody>
+                        {% for item in top_items %}
+                        <tr>
+                            <td class="fw-semibold">{{ item.name }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ item.type or 'Item' }}</span></td>
+                            <td class="text-center fw-bold">{{ item.qty }}</td>
+                            <td class="text-end text-success fw-bold">₱{{ "{:,.2f}".format(item.subtotal|float) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center text-muted py-4">No itemized sales found.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card-custom h-100">
+                <h5 class="fw-bold mb-3">Top Customers</h5>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm align-middle mb-0">
+                        <thead><tr><th>Customer</th><th class="text-center">Transactions</th><th class="text-end">Total</th></tr></thead>
+                        <tbody>
+                        {% for c in top_customers %}
+                        <tr>
+                            <td class="fw-semibold">{{ c.name }}</td>
+                            <td class="text-center fw-bold">{{ c.count }}</td>
+                            <td class="text-end text-success fw-bold">₱{{ "{:,.2f}".format(c.total|float) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-center text-muted py-4">No customer-linked sales found.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <a href="/customers" class="btn btn-outline-primary btn-sm w-100 mt-3">Open Customer Records</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-custom">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+                <h5 class="fw-bold mb-0">Sales Transactions</h5>
+                <small class="text-muted">{{ sales|length }} transaction(s) shown for {{ filters.get('record_status','active')|title }} records.</small>
+            </div>
+            <span class="badge bg-light text-dark border">Average: ₱{{ "{:,.2f}".format(avg_transaction|float) }}</span>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <a class="btn btn-sm {% if filters.get('record_status','active') == 'active' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{{ status_urls.get('active', '/sales?record_status=active') }}">Active Sales</a>
+            <a class="btn btn-sm {% if filters.get('record_status') == 'archived' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{{ status_urls.get('archived', '/sales?record_status=archived') }}">Archived Sales</a>
+            <a class="btn btn-sm {% if filters.get('record_status') == 'voided' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{{ status_urls.get('voided', '/sales?record_status=voided') }}">Voided Sales</a>
+            <a class="btn btn-sm {% if filters.get('record_status') == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{{ status_urls.get('all', '/sales?record_status=all') }}">All Records</a>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-dark table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>View Receipt</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Payment</th>
+                        <th>Items</th>
+                        <th class="text-end">Total</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                    <tr>
+                        <td class="fw-bold">
+                            {{ sale.receipt_no }}
+                            {% if sale.is_archived %}
+                                <span class="badge bg-warning text-dark d-block mt-1">Archived</span>
+                            {% endif %}
+                            {% if sale.is_voided %}
+                                <span class="badge bg-danger d-block mt-1">Voided</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div>{{ sale.transaction_date[:10] if sale.transaction_date else '-' }}</div>
+                            <small class="text-muted">{{ sale.transaction_date[11:16] if sale.transaction_date else '' }}</small>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ sale.customer_name or 'Walk-in / Unspecified' }}</div>
+                            <small class="text-muted d-block">{{ sale.customer_contact or '-' }}</small>
+                            <small class="text-muted">{{ sale.customer_email or '' }}</small>
+                        </td>
+                        <td>
+                            {% if sale.payment_method == 'GCash' %}
+                                <span class="badge bg-primary">GCash</span>
+                                <small class="d-block text-muted">Ref: {{ sale.gcash_reference or 'Missing' }}</small>
+                            {% else %}
+                                <span class="badge bg-secondary">Cash</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% for item in sale['items'][:3] %}
+                                <div class="small">
+                                    <span class="badge bg-light text-dark border">{{ item.item_type }}</span>
+                                    {{ item.item_description }} x{{ item.qty }}
+                                </div>
+                            {% endfor %}
+                            {% if sale['items']|length > 3 %}
+                                <small class="text-muted">+{{ sale['items']|length - 3 }} more item(s)</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end text-success fw-bold">₱{{ "{:,.2f}".format(sale.total_amount|float) }}</td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="/print_receipt/{{ sale.receipt_no }}" target="_blank" class="btn btn-outline-primary"><i class="fa-solid fa-receipt me-1"></i>View Receipt</a>
+                                {% if session.get('role') == 'Admin' %}
+                                    {% if sale.is_archived %}
+                                    <form action="/restore_sale/{{ sale.receipt_no }}" method="POST" onsubmit="return confirm('Restore this archived sale record?');">
+                                        <button class="btn btn-outline-success">Restore</button>
+                                    </form>
+                                    {% elif not sale.is_voided %}
+                                    <form action="/archive_sale/{{ sale.receipt_no }}" method="POST" onsubmit="return confirm('Archive this sale record?');">
+                                        <button class="btn btn-outline-secondary">Archive</button>
+                                    </form>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-5">
+                            <i class="fa-solid fa-receipt fs-1 d-block mb-2"></i>
+                            No sales records matched the selected filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

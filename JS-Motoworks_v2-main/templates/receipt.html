@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Receipt {{ transaction.receipt_no }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            box-sizing: border-box;
+            color: #000 !important;
+            background: #fff !important;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 58mm;
+            background: #fff !important;
+            color: #000 !important;
+        }
+
+        .page {
+            width: 58mm;
+            margin: 0;
+            padding: 0;
+            background: #fff !important;
+        }
+
+        pre.receipt {
+            width: 48mm;
+            max-width: 48mm;
+            margin: 0 auto;
+            padding: 1.5mm 0;
+            background: #fff !important;
+            color: #000 !important;
+            font-family: "Courier New", "Lucida Console", monospace;
+            font-size: 9px;
+            line-height: 1.05;
+            font-weight: 600;
+            white-space: pre;
+            overflow: hidden;
+            letter-spacing: 0;
+            text-rendering: optimizeSpeed;
+            -webkit-font-smoothing: none;
+            font-smooth: never;
+        }
+
+        .controls {
+            width: 58mm;
+            max-width: 58mm;
+            margin: 12px auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0 4px;
+        }
+
+        button, a {
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 10px;
+            border-radius: 8px;
+            border: 0;
+            text-align: center;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        button { background: #2563eb !important; color: #fff !important; }
+        a { background: #e5e7eb !important; color: #111827 !important; }
+
+        @page {
+            size: 58mm 210mm;
+            margin: 0;
+        }
+
+        @media print {
+            html, body {
+                width: 58mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+            }
+
+            .page {
+                width: 58mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            pre.receipt {
+                width: 48mm !important;
+                max-width: 48mm !important;
+                margin: 0 auto !important;
+                padding: 1mm 0 !important;
+                font-size: 9px !important;
+                line-height: 1.05 !important;
+                font-weight: 600 !important;
+                white-space: pre !important;
+                overflow: hidden !important;
+                background: #fff !important;
+                color: #000 !important;
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+            }
+
+            .controls {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+<pre class="receipt">
+        {{ (shop.shop_name if shop and shop.shop_name else 'JS MOTOWORKS')[:24] }}
+        SALES RECEIPT
+
+OR#: {{ transaction.receipt_no }}
+Date: {{ receipt_date if receipt_date else (transaction.transaction_date|receipt_datetime if transaction.transaction_date else '-') }}
+Cashier: {{ transaction.cashier_id or transaction.user_id or '-' }}
+Pay: {{ transaction.payment_method or '-' }}
+{% if transaction.payment_method == 'GCash' and transaction.gcash_reference %}GCash: {{ transaction.gcash_reference[:22] }}
+{% endif %}
+Customer:
+{{ (transaction.customer_name or 'Walk-in')[:28] }}
+{% if transaction.customer_contact %}{{ transaction.customer_contact[:28] }}
+{% endif %}Type: {{ 'Registered' if transaction.customer_user_id else 'Walk-in' }}
+
+ITEMS
+{% for item in items %}{{ item.item_description[:28] }}
+{{ item.qty }} x {{ "{:,.2f}".format(item.unit_price|float) }} = PHP {{ "{:,.2f}".format(item.subtotal|float) }}
+{{ (item.item_type or 'Item')[:12] }}{% if item.sku %} {{ item.sku[:12] }}{% endif %}
+
+{% endfor %}Subtotal: PHP {{ "{:,.2f}".format(transaction.total_amount|float) }}
+TOTAL:    PHP {{ "{:,.2f}".format(transaction.total_amount|float) }}
+
+VAT SUMMARY
+VATable: PHP {{ "{:,.2f}".format(vat_breakdown.vatable_sales|float) }}
+VAT 12%: PHP {{ "{:,.2f}".format(vat_breakdown.vat_amount|float) }}
+Exempt:  PHP {{ "{:,.2f}".format(vat_breakdown.vat_exempt|float) }}
+Zero:    PHP {{ "{:,.2f}".format(vat_breakdown.zero_rated|float) }}
+
+THANK YOU! RIDE SAFE!
+Keep this receipt for sales and service reference.
+</pre>
+
+    <div class="controls">
+        <button onclick="window.print()">Print Receipt</button>
+        <a href="/sales">Back to Sales History</a>
+    </div>
+</div>
+</body>
+</html>

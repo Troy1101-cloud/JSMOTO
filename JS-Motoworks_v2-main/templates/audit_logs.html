@@ -1,0 +1,185 @@
+{% extends "layout.html" %}
+{% block content %}
+{% set logs = logs|default([]) %}
+{% set summary = summary|default({'total_logs':0,'stock_in':0,'stock_out':0,'edits':0,'void_returns':0,'archives':0,'adjustments':0}) %}
+{% set filters = filters|default({}) %}
+{% set actions = actions|default(['Stock In','Restock','Checkout','Stock Out','Damaged','Lost','Correction','Edit','Archive','Void Return']) %}
+{% set today = today|default('') %}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1">Inventory Audit Logs</h2>
+            <p class="text-muted mb-0">Trace inventory movements, stock adjustments, edits, void returns, and archived items.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/inventory" class="btn btn-outline-primary fw-bold"><i class="fa-solid fa-boxes me-2"></i>Inventory</a>
+            <a href="/audit_logs" class="btn btn-outline-secondary fw-bold"><i class="fa-solid fa-rotate-left me-2"></i>Reset</a>
+        </div>
+    </div>
+
+    <div class="alert alert-info border-0 rounded-4 small">
+        <strong>Traceability note:</strong> Audit logs help prove accountability for stock-in, POS deductions, manual adjustments, damaged/lost items, and voided receipt returns.
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-2 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">Shown Logs</small>
+                <h3 class="fw-bold mb-0">{{ summary.get('total_logs',0) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">Stock In</small>
+                <h3 class="fw-bold text-success mb-0">{{ summary.get('stock_in',0) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">Stock Out</small>
+                <h3 class="fw-bold text-danger mb-0">{{ summary.get('stock_out',0) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">Adjustments</small>
+                <h3 class="fw-bold text-warning mb-0">{{ summary.get('adjustments',0) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">Void Returns</small>
+                <h3 class="fw-bold text-primary mb-0">{{ summary.get('void_returns',0) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card-custom h-100">
+                <small class="text-muted fw-bold">Edits / Archives</small>
+                <h3 class="fw-bold text-secondary mb-0">{{ summary.get('edits',0) + summary.get('archives',0) }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-custom mb-4">
+        <form method="GET" action="/audit_logs" class="row g-3 align-items-end">
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Action</label>
+                <select name="action" class="form-select">
+                    <option value="">All Actions</option>
+                    {% for action in actions %}
+                        <option value="{{ action }}" {% if filters.get('action') == action %}selected{% endif %}>{{ action }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Item Code</label>
+                <input type="text" name="sku" class="form-control" value="{{ filters.get('sku','') }}" placeholder="SKU / Barcode">
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Performed By</label>
+                <input type="text" name="username" class="form-control" value="{{ filters.get('username','') }}" placeholder="Username">
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Start Date</label>
+                <input type="date" name="start_date" class="form-control" value="{{ filters.get('start_date','') }}" max="{{ today }}">
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">End Date</label>
+                <input type="date" name="end_date" class="form-control" value="{{ filters.get('end_date','') }}" max="{{ today }}">
+            </div>
+            <div class="col-lg-1">
+                <label class="form-label fw-bold">Limit</label>
+                <select name="limit" class="form-select">
+                    {% for n in [50, 100, 200, 500, 1000] %}
+                        <option value="{{ n }}" {% if filters.get('limit',200) == n %}selected{% endif %}>{{ n }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-1">
+                <button type="submit" class="btn btn-primary fw-bold w-100">
+                    <i class="fa-solid fa-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card-custom">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-clipboard-list text-primary me-2"></i>Stock Movement History</h5>
+                <small class="text-muted">Soft-delete and void actions remain visible for data integrity.</small>
+            </div>
+            <span class="badge bg-light text-dark border">{{ logs|length }} row(s)</span>
+        </div>
+
+        <div class="table-responsive" style="max-height: 680px; overflow-y: auto;">
+            <table class="table table-dark table-hover align-middle">
+                <thead style="position: sticky; top: 0; z-index: 1;">
+                    <tr>
+                        <th>Date & Time</th>
+                        <th class="text-center">Action</th>
+                        <th>Item Detail</th>
+                        <th class="text-center">Qty</th>
+                        <th>Performed By</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    {% set action = log.get('action') or '' %}
+                    <tr>
+                        <td class="small" style="min-width: 155px;">{{ log.get('log_date','-') }}</td>
+                        <td class="text-center">
+                            {% if action in ['Stock In', 'Restock'] %}
+                                <span class="badge bg-success"><i class="fa-solid fa-arrow-turn-down me-1"></i>{{ action }}</span>
+                            {% elif action in ['Stock Out', 'Checkout'] %}
+                                <span class="badge bg-danger"><i class="fa-solid fa-arrow-turn-up me-1"></i>{{ action }}</span>
+                            {% elif action in ['Damaged','Lost','Correction'] %}
+                                <span class="badge bg-warning text-dark"><i class="fa-solid fa-scale-balanced me-1"></i>{{ action }}</span>
+                            {% elif action == 'Void Return' %}
+                                <span class="badge bg-primary"><i class="fa-solid fa-rotate-left me-1"></i>Void Return</span>
+                            {% elif action == 'Edit' %}
+                                <span class="badge bg-info text-dark"><i class="fa-solid fa-pen me-1"></i>Edit</span>
+                            {% elif action == 'Archive' %}
+                                <span class="badge bg-secondary"><i class="fa-solid fa-box-archive me-1"></i>Archive</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ action or 'Unknown' }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-bold d-block">{{ log.get('item_name') or 'Item record not found / old SKU' }}</span>
+                            <small class="text-primary fw-bold">{{ log.get('sku') or '-' }}</small>
+                            {% if log.get('brand') or log.get('category') %}
+                                <small class="text-muted d-block">{{ log.get('brand','') }} {% if log.get('category') %}• {{ log.get('category') }}{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-center fw-bold fs-5">
+                            {% set qty = log.get('qty') or 0 %}
+                            {% if action in ['Checkout', 'Stock Out', 'Damaged', 'Lost', 'Correction'] %}
+                                <span class="text-danger">{{ qty }}</span>
+                            {% elif action in ['Stock In', 'Restock', 'Void Return'] %}
+                                <span class="text-success">+{{ qty }}</span>
+                            {% else %}
+                                <span>{{ qty }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border"><i class="fa-solid fa-user me-1"></i>{{ log.get('username') or 'System' }}</span>
+                        </td>
+                        <td class="text-muted small" style="min-width: 240px;">{{ log.get('remarks') or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">
+                            <i class="fa-solid fa-box-open fs-1 text-muted mb-3 d-block"></i>
+                            No audit records matched the selected filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

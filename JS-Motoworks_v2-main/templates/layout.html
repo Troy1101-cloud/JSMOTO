@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ shop_settings.shop_name if shop_settings else 'JS Motoworks' }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        :root {
+            --app-bg:#f4f7fb;
+            --sidebar-bg:#ffffff;
+            --surface:#ffffff;
+            --surface-2:#f8fafc;
+            --line:#e5e7eb;
+            --text-main:#111827;
+            --text-muted:#6b7280;
+            --primary:#2563eb;
+            --primary-dark:#1d4ed8;
+            --accent:#0f766e;
+            --danger:#dc2626;
+            --warning:#d97706;
+            --shadow:0 10px 25px rgba(15,23,42,.08);
+        }
+        body { font-family:'Poppins',sans-serif; background:var(--app-bg); color:var(--text-main); }
+        .sidebar { width:260px; height:100vh; background:var(--sidebar-bg); position:fixed; padding:20px; border-right:1px solid var(--line); box-shadow:var(--shadow); display:flex; flex-direction:column; overflow:hidden; }
+        .main-content { margin-left:260px; padding:30px; }
+        .logo-area { text-align:center; padding-bottom:22px; border-bottom:1px solid var(--line); margin-bottom:22px; }
+        .brand-icon { width:54px; height:54px; border-radius:16px; margin:0 auto 10px; display:flex; align-items:center; justify-content:center; color:white; background:linear-gradient(135deg,#2563eb,#0f766e); box-shadow:0 10px 20px rgba(37,99,235,.18); }
+        .brand-text { color:var(--primary); font-weight:800; font-size:1.25rem; letter-spacing:.1px; }
+        .role-badge { display:inline-block; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:4px 9px; border-radius:999px; font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+        .nav-link { color:var(--text-muted); padding:11px 14px; border-radius:12px; margin-bottom:6px; transition:all .18s ease; display:flex; align-items:center; text-decoration:none; font-weight:600; }
+        .nav-link i { margin-right:12px; font-size:1.05rem; width:20px; text-align:center; }
+        .nav-link:hover,.nav-link.active { background:#eff6ff; color:var(--primary); }
+        .nav-section { color:#9ca3af; font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.12em; padding:12px 14px 6px; }
+        .sidebar-nav { flex:1; overflow-y:auto; overflow-x:hidden; padding-right:4px; }
+        .sidebar-nav::-webkit-scrollbar { width:6px; }
+        .sidebar-nav::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:999px; }
+        .sidebar-footer { flex-shrink:0; background:var(--sidebar-bg); }
+        .card-custom { background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:20px; box-shadow:var(--shadow); color:var(--text-main); }
+        .table { color:var(--text-main); vertical-align:middle; }
+        .table-dark { --bs-table-bg:var(--surface); --bs-table-color:var(--text-main); --bs-table-border-color:var(--line); --bs-table-striped-bg:#f8fafc; --bs-table-hover-bg:#eff6ff; color:var(--text-main); }
+        .table-dark th { background:var(--surface-2)!important; color:var(--text-muted)!important; border-bottom:2px solid var(--primary)!important; }
+        .table-dark td { border-color:var(--line)!important; color:var(--text-main); }
+        .text-white { color:var(--text-main)!important; }
+        .text-muted { color:var(--text-muted)!important; }
+        .bg-dark { background-color:#f8fafc!important; color:var(--text-main)!important; }
+        .border-secondary { border-color:var(--line)!important; }
+        .form-control,.form-select { background-color:#fff!important; color:var(--text-main)!important; border:1px solid #cbd5e1!important; border-radius:10px; }
+        .form-control:focus,.form-select:focus { border-color:var(--primary)!important; box-shadow:0 0 0 .2rem rgba(37,99,235,.15)!important; }
+        .btn-primary { background:var(--primary)!important; border-color:var(--primary)!important; }
+        .btn-warning { background:#f59e0b!important; border-color:#f59e0b!important; color:#111827!important; }
+        code { color:#0f766e; }
+        @media (max-width: 992px){ .sidebar{position:relative;width:100%;height:auto;min-height:auto;overflow:visible;} .sidebar-nav{overflow:visible;max-height:none;} .main-content{margin-left:0;padding:18px;} }
+    </style>
+</head>
+<body>
+    {% set role = session.get('role') %}
+    <div class="sidebar">
+        <div class="logo-area">
+            <div class="brand-icon"><i class="fa-solid fa-motorcycle fs-4"></i></div>
+            <h4 class="brand-text m-0">{{ shop_settings.shop_name if shop_settings else 'JS Motoworks' }}</h4>
+            <span class="role-badge mt-2">{{ role if role else 'System Access' }}</span>
+        </div>
+
+        <ul class="nav flex-column sidebar-nav">
+            {% if role == 'Admin' %}
+                <div class="nav-section">Management</div>
+                <li class="nav-item"><a class="nav-link" href="/dashboard"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/appointments"><i class="fas fa-calendar-check"></i> Appointments</a></li>
+                <li class="nav-item"><a class="nav-link" href="/sales"><i class="fas fa-file-invoice-dollar"></i> Sales Reports</a></li>
+
+                <div class="nav-section">Operations</div>
+                <li class="nav-item"><a class="nav-link" href="/pos"><i class="fas fa-cash-register"></i> Point of Sale</a></li>
+                <li class="nav-item"><a class="nav-link" href="/inventory"><i class="fas fa-boxes"></i> Inventory</a></li>
+                <li class="nav-item"><a class="nav-link" href="/audit_logs"><i class="fas fa-clipboard-list"></i> Audit Logs</a></li>
+
+                <div class="nav-section">Administration</div>
+                <li class="nav-item"><a class="nav-link" href="/services"><i class="fas fa-wrench"></i> Services</a></li>
+                <li class="nav-item"><a class="nav-link" href="/customers"><i class="fas fa-address-book"></i> Customer Records</a></li>
+                <li class="nav-item"><a class="nav-link" href="/users"><i class="fas fa-users-cog"></i> Staff Users</a></li>
+                <li class="nav-item"><a class="nav-link" href="/settings"><i class="fas fa-gears"></i> Settings</a></li>
+            {% elif role == 'Cashier' %}
+                <div class="nav-section">Cashier Access</div>
+                <li class="nav-item"><a class="nav-link" href="/pos"><i class="fas fa-cash-register"></i> Point of Sale</a></li>
+                <li class="nav-item"><a class="nav-link" href="/appointments"><i class="fas fa-calendar-check"></i> Appointments</a></li>
+                <li class="nav-item"><a class="nav-link" href="/sales"><i class="fas fa-receipt"></i> Sales Records</a></li>
+            {% elif role == 'Inventory' %}
+                <div class="nav-section">Inventory Access</div>
+                <li class="nav-item"><a class="nav-link" href="/inventory"><i class="fas fa-boxes"></i> Inventory</a></li>
+                <li class="nav-item"><a class="nav-link" href="/audit_logs"><i class="fas fa-clipboard-list"></i> Audit Logs</a></li>
+            {% elif role == 'Customer' %}
+                <div class="nav-section">Customer Access</div>
+                <li class="nav-item"><a class="nav-link" href="/customer_portal"><i class="fas fa-user-check"></i> Customer Portal</a></li>
+                <li class="nav-item"><a class="nav-link" href="/book"><i class="fas fa-calendar-plus"></i> Book Service</a></li>
+                <li class="nav-item"><a class="nav-link" href="/track_booking"><i class="fas fa-search"></i> Track Booking</a></li>
+            {% endif %}
+        </ul>
+
+        <div class="sidebar-footer pt-3 border-top">
+            <div class="d-flex align-items-center mb-3 px-2">
+                <i class="fas fa-user-circle fs-3 me-2 text-muted"></i>
+                <div>
+                    <div class="fw-bold lh-1" style="font-size:.9rem;">{{ session.get('full_name','User') }}</div>
+                    <div class="text-muted" style="font-size:.75rem;">@{{ session.get('username','') }}</div>
+                </div>
+            </div>
+            <a href="/logout" class="btn w-100" style="background-color:#eef2ff; color:#2563eb; font-weight:bold; border:1px solid #c7d2fe;">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </div>
+    <div class="main-content">{% block content %}{% endblock %}</div>
+</body>
+</html>

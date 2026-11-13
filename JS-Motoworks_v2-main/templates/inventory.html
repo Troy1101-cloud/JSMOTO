@@ -1,0 +1,362 @@
+{% extends "layout.html" %}
+{% block content %}
+{% set inventory_summary = inventory_summary|default({'total_items': items|length, 'in_stock': 0, 'low_stock': 0, 'out_of_stock': 0, 'total_stock_value': 0}) %}
+{% set filters = filters|default({}) %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1">Inventory Management</h2>
+            <p class="text-muted mb-0">Manage stocked parts, monitor par levels, and record inventory movements.</p>
+        </div>
+        {% if session.role == 'Admin' %}
+        <button class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#addItemModal">
+            <i class="fas fa-plus-circle me-1"></i> Add New Stocked Item
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="alert alert-info small rounded-4 border-0">
+        <strong>Item Code / Barcode policy:</strong> The item code is required and used as both SKU and scanner lookup value. Only Admin users can edit item master data. Inventory staff can record stock movements only.
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6"><div class="card-custom h-100"><small class="text-muted fw-bold">Items Shown</small><h3 class="fw-bold mb-0">{{ inventory_summary.get('total_items', 0) }}</h3></div></div>
+        <div class="col-md-3 col-6"><div class="card-custom h-100"><small class="text-muted fw-bold">In Stock</small><h3 class="fw-bold text-success mb-0">{{ inventory_summary.get('in_stock', 0) }}</h3></div></div>
+        <div class="col-md-3 col-6"><div class="card-custom h-100"><small class="text-muted fw-bold">Low Stock</small><h3 class="fw-bold text-warning mb-0">{{ inventory_summary.get('low_stock', 0) }}</h3></div></div>
+        <div class="col-md-3 col-6"><div class="card-custom h-100"><small class="text-muted fw-bold">Stock Value</small><h3 class="fw-bold text-primary mb-0">₱{{ "{:,.2f}".format(inventory_summary.get('total_stock_value', 0)|float) }}</h3></div></div>
+    </div>
+
+    <div class="card-custom mb-4">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-lg-4">
+                <label class="form-label fw-bold">Search Item</label>
+                <input type="text" name="search" class="form-control" value="{{ filters.get('search','') }}" placeholder="Code, item name, brand, specs">
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label fw-bold">Category</label>
+                <select name="category" class="form-select">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if filters.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label fw-bold">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="In Stock" {% if filters.get('status') == 'In Stock' %}selected{% endif %}>In Stock</option>
+                    <option value="Low Stock" {% if filters.get('status') == 'Low Stock' %}selected{% endif %}>Low Stock</option>
+                    <option value="Out of Stock" {% if filters.get('status') == 'Out of Stock' %}selected{% endif %}>Out of Stock</option>
+                </select>
+            </div>
+            <div class="col-lg-2 d-flex gap-2">
+                <button class="btn btn-primary fw-bold flex-fill"><i class="fa-solid fa-filter me-1"></i>Filter</button>
+                <a href="/inventory" class="btn btn-outline-secondary fw-bold">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="card card-custom">
+        <div class="card-body table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Item Code</th>
+                        <th>Description</th>
+                        <th>Brand / Category</th>
+                        <th class="text-end">Price</th>
+                        <th class="text-center">Stock / Par</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <span class="fw-bold text-primary">{{ item.sku }}</span>
+                            <small class="text-muted d-block"><i class="fa-solid fa-barcode me-1"></i>Used for scanner lookup</small>
+                        </td>
+                        <td>
+                            <span class="fw-semibold">{{ item.item_name }}</span>
+                            {% if item.specs %}<small class="text-muted d-block">{{ item.specs }}</small>{% endif %}
+                        </td>
+                        <td>
+                            <span class="d-block">{{ item.brand or 'N/A' }}</span>
+                            <span class="badge bg-light text-dark border">{{ item.category or 'Uncategorized' }}</span>
+                        </td>
+                        <td class="text-end fw-bold text-success">₱ {{ "{:,.2f}".format(item.price|float) }}</td>
+                        <td class="text-center">
+                            {% if item.stock_qty <= 0 %}
+                                <span class="badge bg-danger fs-6">0</span>
+                            {% elif item.stock_qty <= item.par_level %}
+                                <span class="badge bg-warning text-dark fs-6">{{ item.stock_qty }}</span>
+                            {% else %}
+                                <span class="badge bg-primary fs-6">{{ item.stock_qty }}</span>
+                            {% endif %}
+                            <small class="text-muted d-block">Par: {{ item.par_level }}</small>
+                        </td>
+                        <td class="text-center">
+                            {% if item.status == 'In Stock' %}
+                                <span class="badge bg-success">In Stock</span>
+                            {% elif item.status == 'Low Stock' %}
+                                <span class="badge bg-warning text-dark">Low Stock</span>
+                            {% else %}
+                                <span class="badge bg-danger">Out of Stock</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#restockModal{{ item.item_id }}" title="Quick Restock">
+                                    <i class="fas fa-boxes"></i>
+                                </button>
+                                <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#adjustModal{{ item.item_id }}" title="Adjust stock">
+                                    <i class="fas fa-scale-balanced"></i>
+                                </button>
+                                {% if session.role == 'Admin' %}
+                                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ item.item_id }}" title="Edit master data">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="archiveItem({{ item.item_id }})" title="Archive / zero stock">
+                                    <i class="fas fa-box-archive"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+
+                    <div class="modal fade" id="restockModal{{ item.item_id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Restock Item</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form action="/restock" method="POST">
+                                    <div class="modal-body">
+                                        <input type="hidden" name="item_id" value="{{ item.item_id }}">
+                                        <p class="mb-1 fw-bold">{{ item.item_name }}</p>
+                                        <small class="text-muted d-block mb-3">Item Code: {{ item.sku }}</small>
+                                        <label class="form-label">Quantity to Add</label>
+                                        <input type="number" name="added_qty" class="form-control" min="1" required>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="submit" class="btn btn-success w-100 fw-bold">Confirm Restock</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal fade" id="adjustModal{{ item.item_id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Stock Movement / Adjustment</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form action="/adjust_stock" method="POST">
+                                    <div class="modal-body">
+                                        <input type="hidden" name="item_id" value="{{ item.item_id }}">
+                                        <p class="mb-1 fw-bold">{{ item.item_name }}</p>
+                                        <small class="text-muted d-block mb-3">Current stock: {{ item.stock_qty }} | Item Code: {{ item.sku }}</small>
+
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Movement Type</label>
+                                            <select name="adjustment_type" class="form-select" required>
+                                                <option value="Stock In">Stock In / Received</option>
+                                                <option value="Stock Out">Stock Out / Manual Deduction</option>
+                                                <option value="Damaged">Damaged Item</option>
+                                                <option value="Lost">Lost / Missing Item</option>
+                                                <option value="Correction">Stock Count Correction</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Quantity</label>
+                                            <input type="number" name="qty" class="form-control" min="1" required>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Remarks</label>
+                                            <textarea name="remarks" class="form-control" rows="2" placeholder="Example: Physical count adjustment, damaged packaging, supplier delivery..."></textarea>
+                                        </div>
+
+                                        <div class="alert alert-warning small mb-0">
+                                            Stock Out, Damaged, Lost, and Correction will deduct from current stock and will be recorded in Audit Logs.
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="submit" class="btn btn-warning w-100 fw-bold">Save Stock Movement</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if session.role == 'Admin' %}
+                    <div class="modal fade" id="editModal{{ item.item_id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Edit Stocked Item</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form action="/edit_item" method="POST">
+                                    <div class="modal-body">
+                                        <input type="hidden" name="item_id" value="{{ item.item_id }}">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Item Code / Barcode <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <input type="text" name="sku" class="form-control barcode-input" value="{{ item.sku }}" required autocomplete="off" data-next-field="item_name">
+                                                <button type="button" class="btn btn-outline-primary scan-barcode-btn">
+                                                    <i class="fa-solid fa-barcode me-1"></i>Scan
+                                                </button>
+                                            </div>
+                                            <small class="text-muted barcode-help">Click Scan, then scan the item barcode. Scanner Enter will capture the code without saving yet.</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Item Name</label>
+                                            <input type="text" name="item_name" class="form-control" value="{{ item.item_name }}" required>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3"><label class="form-label">Brand</label><input type="text" name="brand" class="form-control" value="{{ item.brand or '' }}"></div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Category</label>
+                                                <select name="category" class="form-select" required>
+                                                    {% for cat in categories %}
+                                                    <option value="{{ cat }}" {% if (item.category or 'Other') == cat %}selected{% endif %}>{{ cat }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 mb-3"><label class="form-label">Price</label><input type="number" step="0.01" min="0" name="price" class="form-control" value="{{ item.price }}" required></div>
+                                        </div>
+                                        <div class="mb-3"><label class="form-label">Specs / Notes</label><textarea name="specs" class="form-control" rows="2">{{ item.specs or '' }}</textarea></div>
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3"><label class="form-label">Stock Quantity</label><input type="number" name="stock_qty" class="form-control" min="0" value="{{ item.stock_qty }}" required></div>
+                                            <div class="col-md-6 mb-3"><label class="form-label">Par Level</label><input type="number" name="par_level" class="form-control" min="0" value="{{ item.par_level }}" required></div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="submit" class="btn btn-primary w-100 fw-bold">Save Changes</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <tr><td colspan="7" class="text-center text-muted py-5">No inventory items found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if session.role == 'Admin' %}
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Register New Stocked Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/inventory" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Item Code / Barcode <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="text" name="sku" class="form-control barcode-input" placeholder="e.g. PAR-MIO-001 or scanned barcode" required autocomplete="off" data-next-field="item_name">
+                            <button type="button" class="btn btn-outline-primary scan-barcode-btn">
+                                <i class="fa-solid fa-barcode me-1"></i>Scan
+                            </button>
+                        </div>
+                        <small class="text-muted barcode-help">Click Scan, then scan the item barcode. Scanner Enter will capture the code without saving yet.</small>
+                    </div>
+                    <div class="mb-3"><label class="form-label">Item Name / Description</label><input type="text" name="item_name" class="form-control" required></div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3"><label class="form-label">Brand</label><input type="text" name="brand" class="form-control"></div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Category</label>
+                            <select name="category" class="form-select" required>
+                                {% for cat in categories %}
+                                <option value="{{ cat }}" {% if cat == 'Parts' %}selected{% endif %}>{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3"><label class="form-label">Initial Stock Qty</label><input type="number" name="stock_qty" class="form-control" value="0" min="0" required></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3"><label class="form-label">Par Level</label><input type="number" name="par_level" class="form-control" value="5" min="0" required></div>
+                        <div class="col-md-6 mb-3"><label class="form-label">Selling Price</label><input type="number" step="0.01" min="0" name="price" class="form-control" placeholder="0.00" required></div>
+                    </div>
+                    <div class="mb-3"><label class="form-label">Specs / Notes</label><textarea name="specs" class="form-control" rows="2"></textarea></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">Save Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function archiveItem(itemId){
+    if(confirm('Archive this item? This will set its stock to zero but keep the record for history.')){
+        fetch('/delete_item/'+itemId,{method:'POST'})
+        .then(r=>r.json())
+        .then(data=>{ alert(data.message); if(data.success) location.reload(); })
+        .catch(()=>alert('Archive request failed.'));
+    }
+}
+
+function prepareBarcodeInput(input){
+    if(!input){ return; }
+    input.focus();
+    input.select();
+    const help = input.closest('.mb-3')?.querySelector('.barcode-help');
+    if(help){
+        help.textContent = 'Ready to scan. Aim the scanner at the barcode; the scanned code will appear here.';
+        help.classList.remove('text-success');
+        help.classList.add('text-muted');
+    }
+}
+
+document.querySelectorAll('.scan-barcode-btn').forEach(button => {
+    button.addEventListener('click', () => {
+        prepareBarcodeInput(button.closest('.input-group')?.querySelector('.barcode-input'));
+    });
+});
+
+document.querySelectorAll('.barcode-input').forEach(input => {
+    input.addEventListener('keydown', event => {
+        if(event.key !== 'Enter'){ return; }
+        event.preventDefault();
+
+        input.value = input.value.replace(/[\r\n\t]+/g, '').trim();
+        const help = input.closest('.mb-3')?.querySelector('.barcode-help');
+        if(help){
+            help.textContent = input.value ? 'Barcode captured. Review the item details, then click Save.' : 'No barcode captured. Scan again or enter the item code.';
+            help.classList.toggle('text-success', Boolean(input.value));
+            help.classList.toggle('text-muted', !input.value);
+        }
+
+        const nextFieldName = input.dataset.nextField;
+        const nextField = nextFieldName ? input.form?.querySelector(`[name="${nextFieldName}"]`) : null;
+        if(nextField){ nextField.focus(); }
+    });
+});
+
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('shown.bs.modal', () => {
+        const input = modal.querySelector('.barcode-input');
+        if(input && !input.value.trim()){
+            prepareBarcodeInput(input);
+        }
+    });
+});
+</script>
+{% endblock %}
